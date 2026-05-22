@@ -23,4 +23,22 @@ app.use((err, req, res, next) => {
     });
 });
 
+//hardcoded user
+
+app.post('/api/auth/login', (req, res) => {
+    const {email, password} = req.body;
+
+    if (email === 'user@gmail.com' && password === '1234'){
+        return res.json({
+            token: 'success',
+            user:{
+                id: 1,
+                email: 'user@gmail.com',
+                name: 'hardcoded user',
+            },
+        })
+    }
+    return res.status(401).json({error: 'Invalid credentials'});
+})
+
 module.exports = app;
