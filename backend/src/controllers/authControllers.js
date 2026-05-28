@@ -1,0 +1,55 @@
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'change_me';
+
+exports.register = async (req, res, next) => {
+    try {
+        const { email, password, fullName } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({
+                error: 'Email and password are required'
+            });
+        }
+
+        const existing = await User.findByEmail(email);
+        if (existing) {
+            return res.status(400).json({
+                error: 'Email already registered'
+            });
+        }
+
+        const user = await User.createUser(email, password, fullName);
+        const token = jwt.sign({id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+        res.status(201).json({ token, user });
+    } catch (err){
+        next(err);
+    }
+};
+
+exports.login = async(req, res, next) => { 
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({
+                error: 'Email and password are required'
+            });
+        }
+    
+    const user = await User.findByEmail(email);
+    if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const ok = await User.verifyPassword(password, user.password_hash);
+    if (!ok) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, email: user.email, fullName: user.full_name, role: user.role } });
+    } catch(err){
+    next(err);
+}
+};

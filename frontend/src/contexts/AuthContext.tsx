@@ -1,51 +1,60 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
+import { authAPI } from '@/services/api'
 
 interface User {
   id: string
   email: string
-  name: string
+  fullName?: string
+  full_name?: string
+  name?: string
+  role?: string
 }
 
 interface AuthContextType {
   isAuthenticated: boolean
   user: User | null
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, fullName: string) => Promise<void>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function normalizeUser(raw: any): User {
+  return {
+    ...raw,
+    fullName: raw?.fullName || raw?.full_name || raw?.name || '',
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => !!localStorage.getItem('auth_token'),
   )
-  const [user, setUser] = useState<User | null>(
-    () => {
-      const stored = localStorage.getItem('user')
-      return stored ? JSON.parse(stored) : null
-    },
-  )
+
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem('user')
+    return stored ? JSON.parse(stored) : null
+  })
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+    const data = await authAPI.login(email, password)
+    const normalizedUser = normalizeUser(data.user)
 
-      if (!response.ok) {
-        throw new Error('Login failed')
-      }
+    localStorage.setItem('auth_token', data.token)
+    localStorage.setItem('user', JSON.stringify(normalizedUser))
+    setIsAuthenticated(true)
+    setUser(normalizedUser)
+  }
 
-      const data = await response.json()
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      setIsAuthenticated(true)
-      setUser(data.user)
-    } catch (error) {
-      throw error
-    }
+  const register = async (email: string, password: string, fullName: string) => {
+    const data = await authAPI.register(email, password, fullName)
+    const normalizedUser = normalizeUser(data.user)
+
+    localStorage.setItem('auth_token', data.token)
+    localStorage.setItem('user', JSON.stringify(normalizedUser))
+    setIsAuthenticated(true)
+    setUser(normalizedUser)
   }
 
   const logout = () => {
@@ -56,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )
