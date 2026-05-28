@@ -196,3 +196,27 @@ export const maintenanceAPI = {
     return response.json()
   },
 }
+
+export const authAPI = {
+  login: async (email: string, password: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || data.message || 'Login failed')
+    return data
+  },
+
+  register: async (email: string, password: string, fullName: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, fullName }),
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || data.message || 'Register failed')
+    return data
+  },
+}

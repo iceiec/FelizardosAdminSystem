@@ -1,5 +1,5 @@
-import { use, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -11,36 +11,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
-  useAuth()
+  const { login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-      try { 
-      const response = await fetch ('/api/auth/login', {
-        method : 'POST',
-        headers :{ 'Content-Type' : 'application/json' },
-        body: JSON.stringify ({email, password}),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok){
-        throw new Error (data.message || 'Login failed ')
-      }
-      localStorage.setItem ('auth_token', data.token)
-      localStorage.setItem ('user', JSON.stringify(data.user))
-
-      toast.success('Login successful!')
-
-      navigate('/')
-    } catch (error) {
-      toast.error('Login failed')
-    } finally{ 
-      setIsLoading(false)
-    }   
+       try {
+    await login(email, password)
+    toast.success('Login successful!')
+    navigate('/')
+  } catch (error: any) {
+    toast.error(error?.message || 'Login failed')
+  } finally {
+    setIsLoading(false)
   }
+}
     
 
   return (
@@ -187,6 +173,9 @@ export default function LoginPage() {
   
             </Button>
           </form>
+          <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.875rem' }}>
+        No account yet? <Link to="/register">Create one</Link>
+          </p> 
 
           <div
             style={{
