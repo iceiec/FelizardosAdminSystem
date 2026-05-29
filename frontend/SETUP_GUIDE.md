@@ -26,7 +26,7 @@ PUT    /api/{module}/:id       - Update record
 DELETE /api/{module}/:id       - Delete record
 ```
 
-Where `{module}` is: `pavillion`, `pool`, `court`, or `maintenance`
+Where `{module}` is: `pavilion`, `pool`, `court`, or `maintenance`
 
 ## Step 2: Configure Frontend
 
@@ -77,30 +77,30 @@ const data = await response.json()
 
 For each page component, replace mock data with API calls:
 
-### Pavillion Page Example
+### Pavilion Page Example
 
-**Before (src/pages/PavillionManagementPage.tsx):**
+**Before (src/pages/PavilionManagementPage.tsx):**
 
 ```typescript
-import { mockPavillionData } from '@/services/mockData'
+import { mockPavilionData } from '@/services/mockData'
 
 // In useEffect:
-const data = mockPavillionData
-setPavillion(data)
+const data = mockPavilionData
+setPavilion(data)
 ```
 
 **After:**
 
 ```typescript
-import { pavillionAPI } from '@/services/api'
+import { pavilionAPI } from '@/services/api'
 
 // In useEffect:
-const data = await pavillionAPI.getAll()
-setPavillion(data)
+const data = await pavilionAPI.getAll()
+setPavilion(data)
 ```
 
 ### Do this for all pages:
-- `src/pages/PavillionManagementPage.tsx` - Replace with `pavillionAPI`
+-- `src/pages/PavilionManagementPage.tsx` - Replace with `pavilionAPI`
 - `src/pages/PoolManagementPage.tsx` - Replace with `poolAPI`
 - `src/pages/CourtManagementPage.tsx` - Replace with `courtAPI`
 - `src/pages/MaintenancePage.tsx` - Replace with `maintenanceAPI`
@@ -127,7 +127,7 @@ pnpm dev
 
 ### 5.3 Test Data Loading
 
-1. After login, navigate to each module (Pavillion, Pool, Court, Maintenance)
+1. After login, navigate to each module (Pavilion, Pool, Court, Maintenance)
 2. Verify data loads from your backend
 3. Check Network tab to confirm API endpoints are being called
 
@@ -151,8 +151,8 @@ Create modal/form for adding/editing records:
 ```typescript
 const handleCreate = async (formData) => {
   try {
-    const result = await pavillionAPI.create(formData)
-    setPavillion([...pavillion, result])
+    const result = await pavilionAPI.create(formData)
+    setPavilion([...pavilion, result])
     toast.success('Created successfully!')
   } catch (error) {
     toast.error(error.message)
@@ -202,7 +202,7 @@ localStorage.setItem('refresh_token', data.refreshToken)
 
 Ensure your Express backend database has these tables:
 
-### Pavillion Table
+### Pavilion Table
 - id (primary key)
 - name (string)
 - capacity (number)

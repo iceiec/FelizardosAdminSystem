@@ -4,7 +4,7 @@ A modern React + Vite frontend for managing Pavilion, Pool, Court, and Maintenan
 
 ## Features
 
-- **Pavillion Management** - Track events, dates, and client information
+- **Pavilion Management** - Track events, dates, and client information
 - **Pool Management** - Manage pool bookings and maintenance schedules
 - **Court Management** - Schedule basketball court bookings with weekly calendar view
 - **Maintenance Tracking** - Manage repairs and maintenance activities
@@ -74,19 +74,19 @@ Modify `src/contexts/AuthContext.tsx` to call your actual login endpoint instead
 
 The app currently uses mock data for testing. To use real data from your backend:
 
-1. In each page component (`PavillionManagementPage`, `PoolManagementPage`, etc.)
+1. In each page component (`PavilionManagementPage`, `PoolManagementPage`, etc.)
 2. Replace the mock API calls with actual API calls using `src/services/api.ts`
 
 Example:
 
 ```typescript
 // Before (mock data)
-import { mockPavillionData } from '@/services/mockData'
-const data = mockPavillionData
+import { mockPavilionData } from '@/services/mockData'
+const data = mockPavilionData
 
 // After (real API)
-import { pavillionAPI } from '@/services/api'
-const data = await pavillionAPI.getAll()
+import { pavilionAPI } from '@/services/api'
+const data = await pavilionAPI.getAll()
 ```
 
 ### 4. API Endpoints Expected
@@ -96,12 +96,12 @@ Your Express backend should implement these endpoints:
 **Authentication**
 - `POST /api/auth/login` - Login endpoint
 
-**Pavillion**
-- `GET /api/pavillion` - Get all pavilions
-- `GET /api/pavillion/:id` - Get single pavilion
-- `POST /api/pavillion` - Create pavilion
-- `PUT /api/pavillion/:id` - Update pavilion
-- `DELETE /api/pavillion/:id` - Delete pavilion
+**Pavilion**
+- `GET /api/pavilion` - Get all pavilions
+- `GET /api/pavilion/:id` - Get single pavilion
+- `POST /api/pavilion` - Create pavilion
+- `PUT /api/pavilion/:id` - Update pavilion
+- `DELETE /api/pavilion/:id` - Delete pavilion
 
 **Pool**
 - `GET /api/pool` - Get all pools
@@ -136,7 +136,7 @@ src/
 ├── pages/
 │   ├── LoginPage.tsx           # Login page
 │   ├── DashboardPage.tsx       # Main dashboard
-│   ├── PavillionManagementPage.tsx
+│   ├── PavilionManagementPage.tsx
 │   ├── PoolManagementPage.tsx
 │   ├── CourtManagementPage.tsx
 │   └── MaintenancePage.tsx

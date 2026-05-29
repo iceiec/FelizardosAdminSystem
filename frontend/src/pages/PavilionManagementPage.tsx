@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Plus, Users, MapPin, Calendar } from 'lucide-react'
-import { mockPavillionData, mockEventsData, type Event } from '@/services/mockData'
+import { mockPavilionData, mockEventsData, type Event } from '@/services/mockData'
 import { toast } from 'sonner'
-import { PavillionModal, type PavillionFormData } from '@/components/PavillionModal'
+import { PavilionModal, type PavilionFormData } from '@/components/PavilionModal'
 import EventModal from '@/components/EventModal'
 import EventDetailsModal from '@/components/EventDetailsModal'
 import CalendarView from '@/components/CalendarView'
 
-interface Pavillion {
+interface Pavilion {
   id: string
   name: string
   capacity: number
@@ -17,13 +17,13 @@ interface Pavillion {
   lastEvent: string
 }
 
-export default function PavillionManagementPage() {
-  const [pavilion, setPavilion] = useState<Pavillion | null>(null)
+export default function PavilionManagementPage() {
+  const [pavilion, setPavilion] = useState<Pavilion | null>(null)
   const [allEvents, setAllEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
-  const [isPavillionModalOpen, setIsPavillionModalOpen] = useState(false)
+  const [isPavilionModalOpen, setIsPavilionModalOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState('')
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -40,7 +40,7 @@ export default function PavillionManagementPage() {
     const loadData = async () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, 500))
-        const pavilionData = mockPavillionData[0]
+        const pavilionData = mockPavilionData[0]
         if (pavilionData) {
           setPavilion({ ...pavilionData, capacity: Number(pavilionData.capacity) || 0 })
         }
@@ -214,7 +214,7 @@ export default function PavillionManagementPage() {
                   <Calendar size={16} />
                   View Events
                 </button>
-                <button onClick={() => setIsPavillionModalOpen(true)} className="btn btn-secondary" style={{ flex: 1 }}>
+                <button onClick={() => setIsPavilionModalOpen(true)} className="btn btn-secondary" style={{ flex: 1 }}>
                   Edit Pavilion
                 </button>
               </div>
@@ -309,10 +309,10 @@ export default function PavillionManagementPage() {
       />
 
       {/* Pavilion Modal */}
-      <PavillionModal
-        isOpen={isPavillionModalOpen}
-        onClose={() => setIsPavillionModalOpen(false)}
-        onSubmit={(data: PavillionFormData) => {
+      <PavilionModal
+        isOpen={isPavilionModalOpen}
+        onClose={() => setIsPavilionModalOpen(false)}
+        onSubmit={(data: PavilionFormData) => {
           if (pavilion) {
             setPavilion({
               ...pavilion,
@@ -323,7 +323,7 @@ export default function PavillionManagementPage() {
             })
             toast.success('Pavilion updated successfully')
           }
-          setIsPavillionModalOpen(false)
+          setIsPavilionModalOpen(false)
         }}
         initialData={pavilion ? {
           name: pavilion.name,

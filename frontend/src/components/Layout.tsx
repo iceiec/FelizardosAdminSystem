@@ -41,8 +41,8 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/pavillion', label: 'Pavillion Management', icon: Building2 },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/pavilion', label: 'Pavilion Management', icon: Building2 },
     { path: '/pool', label: 'Pool Management', icon: Waves },
     { path: '/court', label: 'Court Management', icon: BarChart3 },
     { path: '/maintenance', label: 'Maintenance', icon: Wrench },

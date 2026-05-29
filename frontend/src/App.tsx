@@ -3,7 +3,7 @@ import { Toaster } from 'sonner'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
-import PavillionManagementPage from './pages/PavillionManagementPage'
+import PavilionManagementPage from './pages/PavilionManagementPage'
 import PoolManagementPage from './pages/PoolManagementPage'
 import CourtManagementPage from './pages/CourtManagementPage'
 import MaintenancePage from './pages/MaintenancePage'
@@ -31,7 +31,7 @@ function AppContent() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<DashboardPage />} />
-                  <Route path="/pavillion" element={<PavillionManagementPage />} />
+                  <Route path="/pavilion" element={<PavilionManagementPage />} />
                   <Route path="/pool" element={<PoolManagementPage />} />
                   <Route path="/court" element={<CourtManagementPage />} />
                   <Route path="/maintenance" element={<MaintenancePage />} />

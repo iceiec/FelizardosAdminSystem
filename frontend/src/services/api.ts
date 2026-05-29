@@ -5,50 +5,50 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
 })
 
-// Pavillion APIs
-export const pavillionAPI = {
+// Pavilion APIs
+export const pavilionAPI = {
   getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/pavillion`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion`, {
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to fetch pavillion data')
+    if (!response.ok) throw new Error('Failed to fetch pavilion data')
     return response.json()
   },
 
   getById: async (id: string) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion/${id}`, {
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to fetch pavillion')
+    if (!response.ok) throw new Error('Failed to fetch pavilion')
     return response.json()
   },
 
   create: async (data: any) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     })
-    if (!response.ok) throw new Error('Failed to create pavillion')
+    if (!response.ok) throw new Error('Failed to create pavilion')
     return response.json()
   },
 
   update: async (id: string, data: any) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     })
-    if (!response.ok) throw new Error('Failed to update pavillion')
+    if (!response.ok) throw new Error('Failed to update pavilion')
     return response.json()
   },
 
   delete: async (id: string) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to delete pavillion')
+    if (!response.ok) throw new Error('Failed to delete pavilion')
     return response.json()
   },
 }

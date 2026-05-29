@@ -25,11 +25,11 @@ export default function DashboardPage() {
 
   const modules: ModuleCard[] = [
     {
-      id: 'pavillion',
-      title: 'Pavillion Management',
+      id: 'pavilion',
+      title: 'Pavilion Management',
       description: 'Manage pavilion bookings, events, and client information',
       icon: <Building2 size={32} />,
-      path: '/pavillion',
+      path: '/pavilion',
       bgColor: '#1e40af',
       count: stats.pavilions,
     },
