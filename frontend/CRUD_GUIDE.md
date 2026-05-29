@@ -49,7 +49,7 @@ The facility management system now includes complete CRUD (Create, Read, Update,
 
 #### Modal Components
 Each management page has a dedicated modal for Create/Edit operations:
-- **PavillionModal**: Add/Edit pavilions
+- **PavilionModal**: Add/Edit pavilions
 - **PoolModal**: Add/Edit pools
 - **CourtModal**: Add/Edit courts
 - **MaintenanceModal**: Add/Edit maintenance tasks

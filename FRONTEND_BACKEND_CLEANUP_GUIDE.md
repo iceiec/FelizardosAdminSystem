@@ -48,7 +48,7 @@ Right now the backend only has a health route in [backend/src/app.js](backend/sr
 The frontend expects routes like:
 
 - `POST /api/auth/login`
-- `GET /api/pavillion`
+- `GET /api/pavilion`
 - `GET /api/pool`
 - `GET /api/court`
 - `GET /api/maintenance`
@@ -57,7 +57,7 @@ The frontend expects routes like:
 
 1. Make login work first.
 2. Connect one page, like Dashboard.
-3. Connect one CRUD section, like Pavillion.
+3. Connect one CRUD section, like Pavilion.
 4. Repeat for Pool, Court, and Maintenance.
 
 ## 7. Keep the code clean while learning

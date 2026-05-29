@@ -3,7 +3,7 @@ import { FormField, FormSelect } from './FormField'
 import { X, Loader } from 'lucide-react'
 import { toast } from 'sonner'
 
-export interface PavillionFormData {
+export interface PavilionFormData {
   id?: string
   name: string
   capacity: string
@@ -11,24 +11,24 @@ export interface PavillionFormData {
   status: string
 }
 
-interface PavillionModalProps {
+interface PavilionModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: PavillionFormData) => void
-  initialData?: PavillionFormData
+  onSubmit: (data: PavilionFormData) => void
+  initialData?: PavilionFormData
   isLoading?: boolean
   title?: string
 }
 
-export function PavillionModal({
+export function PavilionModal({
   isOpen,
   onClose,
   onSubmit,
   initialData,
   isLoading = false,
   title,
-}: PavillionModalProps) {
-  const [formData, setFormData] = useState<PavillionFormData>(
+}: PavilionModalProps) {
+  const [formData, setFormData] = useState<PavilionFormData>(
     initialData || {
       name: '',
       capacity: '',
@@ -38,7 +38,7 @@ export function PavillionModal({
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,

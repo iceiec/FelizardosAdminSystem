@@ -101,7 +101,7 @@ export const mockEventsData: Event[] = [
   },
 ]
 
-export const mockPavillionData = [
+export const mockPavilionData = [
   {
     id: 'pav-1',
     name: 'Main Pavilion',
@@ -259,11 +259,11 @@ export const mockMaintenanceData = [
 
 // Mock API service for testing
 export const mockAPI = {
-  pavillion: {
-    getAll: async () => mockPavillionData,
-    getById: async (id: string) => mockPavillionData.find((p) => p.id === id),
+  pavilion: {
+    getAll: async () => mockPavilionData,
+    getById: async (id: string) => mockPavilionData.find((p) => p.id === id),
     create: async (data: any) => ({ id: Date.now().toString(), ...data }),
-    update: async (id: string, data: any) => ({ ...mockPavillionData.find((p) => p.id === id), ...data }),
+    update: async (id: string, data: any) => ({ ...mockPavilionData.find((p) => p.id === id), ...data }),
     delete: async (id: string) => ({ success: true }),
   },
   pool: {

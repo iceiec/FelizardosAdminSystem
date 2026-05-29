@@ -5,50 +5,50 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
 })
 
-// Pavillion APIs
-export const pavillionAPI = {
+// Pavilion APIs
+export const pavilionAPI = {
   getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/pavillion`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion`, {
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to fetch pavillion data')
+    if (!response.ok) throw new Error('Failed to fetch pavilion data')
     return response.json()
   },
 
   getById: async (id: string) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion/${id}`, {
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to fetch pavillion')
+    if (!response.ok) throw new Error('Failed to fetch pavilion')
     return response.json()
   },
 
   create: async (data: any) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     })
-    if (!response.ok) throw new Error('Failed to create pavillion')
+    if (!response.ok) throw new Error('Failed to create pavilion')
     return response.json()
   },
 
   update: async (id: string, data: any) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     })
-    if (!response.ok) throw new Error('Failed to update pavillion')
+    if (!response.ok) throw new Error('Failed to update pavilion')
     return response.json()
   },
 
   delete: async (id: string) => {
-    const response = await fetch(`${API_BASE_URL}/pavillion/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/pavilion/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to delete pavillion')
+    if (!response.ok) throw new Error('Failed to delete pavilion')
     return response.json()
   },
 }
@@ -193,6 +193,49 @@ export const maintenanceAPI = {
       headers: getAuthHeaders(),
     })
     if (!response.ok) throw new Error('Failed to delete maintenance')
+    return response.json()
+  },
+}
+
+// Pavilion booking APIs
+export const pavilionBookingAPI = {
+  create: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const e = await response.json().catch(() => ({}))
+      throw new Error(e.error || 'Failed to create booking')
+    }
+    return response.json()
+  },
+
+  getByPavilion: async (pavilionId: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings?pavilionId=${encodeURIComponent(pavilionId)}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch bookings')
+    return response.json()
+  },
+
+  updateStatus: async (id: string, status: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings/${id}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) throw new Error('Failed to update booking status')
+    return response.json()
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to delete booking')
     return response.json()
   },
 }

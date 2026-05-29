@@ -41,8 +41,8 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/pavillion', label: 'Pavillion Management', icon: Building2 },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/pavilion', label: 'Pavilion Management', icon: Building2 },
     { path: '/pool', label: 'Pool Management', icon: Waves },
     { path: '/court', label: 'Court Management', icon: BarChart3 },
     { path: '/maintenance', label: 'Maintenance', icon: Wrench },
@@ -153,7 +153,6 @@ export default function Layout({ children }: LayoutProps) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.75rem',
-                      paddingLeft: '0.75rem',
                       paddingRight: '0.75rem',
                       paddingTop: '0.625rem',
                       paddingBottom: '0.625rem',
