@@ -153,7 +153,6 @@ export default function Layout({ children }: LayoutProps) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.75rem',
-                      paddingLeft: '0.75rem',
                       paddingRight: '0.75rem',
                       paddingTop: '0.625rem',
                       paddingBottom: '0.625rem',

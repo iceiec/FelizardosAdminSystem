@@ -45,8 +45,8 @@ export default function PoolManagementPage() {
         if (poolData) {
           setPool({
             ...poolData,
-            capacity: parseInt(poolData.capacity) || 0,
-            temperature: parseInt(poolData.temperature) || 28,
+            capacity: Number(poolData.capacity) || 0,
+            temperature: Number(poolData.temperature) || 28,
           })
         }
         setAllEvents(mockEventsData)

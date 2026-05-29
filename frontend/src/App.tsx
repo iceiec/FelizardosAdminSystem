@@ -24,6 +24,16 @@ function AppContent() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        {import.meta.env.DEV && (
+          <Route
+            path="/pavilion"
+            element={
+              <Layout>
+                <PavilionManagementPage />
+              </Layout>
+            }
+          />
+        )}
         <Route
           path="/*"
           element={

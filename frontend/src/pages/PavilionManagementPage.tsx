@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Users, MapPin, Calendar } from 'lucide-react'
-import { mockPavilionData, mockEventsData, type Event } from '@/services/mockData'
+import { mockEventsData, type Event } from '@/services/mockData'
+import { pavilionAPI, pavilionBookingAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { PavilionModal, type PavilionFormData } from '@/components/PavilionModal'
 import EventModal from '@/components/EventModal'
@@ -39,10 +40,18 @@ export default function PavilionManagementPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        const pavilionData = mockPavilionData[0]
+        const pavilions = await pavilionAPI.getAll()
+        const pavilionData = pavilions?.[0]
         if (pavilionData) {
-          setPavilion({ ...pavilionData, capacity: Number(pavilionData.capacity) || 0 })
+          setPavilion({
+            id: pavilionData.id,
+            name: pavilionData.name,
+            capacity: Number(pavilionData.capacity) || 0,
+            location: pavilionData.location || '',
+            status: pavilionData.status || 'active',
+            events: pavilionData.events || 0,
+            lastEvent: pavilionData.lastEvent || '',
+          })
         }
         setAllEvents(mockEventsData)
       } catch (error) {
@@ -53,6 +62,22 @@ export default function PavilionManagementPage() {
     }
     loadData()
   }, [])
+
+  // Bookings state and loader (must be declared before any early returns)
+  const [bookings, setBookings] = useState<any[]>([])
+
+  useEffect(() => {
+    const loadBookings = async () => {
+      if (!pavilion) return
+      try {
+        const rows = await pavilionBookingAPI.getByPavilion(pavilion.id)
+        setBookings(rows)
+      } catch (err) {
+        console.warn('Failed to load bookings', err)
+      }
+    }
+    loadBookings()
+  }, [pavilion])
 
   const handleAddEvent = () => {
     setEditingEvent(null)
@@ -76,13 +101,42 @@ export default function PavilionManagementPage() {
       )
       toast.success('Event updated successfully')
     } else {
-      const newEvent: Event = {
+      const newEvent: any = {
         id: `evt-${Date.now()}`,
         ...eventData,
         createdAt: new Date().toISOString().split('T')[0],
       }
-      setAllEvents([...allEvents, newEvent])
-      toast.success('Event created successfully')
+      // Try to create a booking via API, fall back to local state on failure
+      const doCreate = async () => {
+        try {
+          if (!pavilion) {
+            setAllEvents([...allEvents, newEvent])
+            toast.success('Event created (offline)')
+            return
+          }
+          const payload = {
+            pavilionId: pavilion.id,
+            eventName: newEvent.eventName,
+            date: newEvent.date,
+            clientName: newEvent.clientName,
+            clientContact: newEvent.clientContact,
+            clientFacebook: (newEvent as any).clientFacebook || null,
+            capacity: newEvent.capacity,
+            depositAmount: newEvent.depositAmount,
+            totalAmount: newEvent.totalAmount,
+            extras: newEvent.extras,
+          }
+          const created = await pavilionBookingAPI.create(payload)
+          // reflect created booking as an event in the UI
+          setAllEvents([...allEvents, { ...newEvent, id: created.id }])
+          toast.success('Booking created successfully')
+        } catch (err) {
+          // fallback to local mock behavior
+          setAllEvents([...allEvents, newEvent])
+          toast.success('Event created (offline)')
+        }
+      }
+      doCreate()
     }
     setIsEventModalOpen(false)
     setEditingEvent(null)
@@ -104,6 +158,17 @@ export default function PavilionManagementPage() {
     }
   }
 
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return ''
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return String(dateStr)
+      return d.toISOString().slice(0, 10)
+    } catch (e) {
+      return String(dateStr)
+    }
+  }
+
   if (isLoading) {
     return (
       <div style={{ textAlign: 'center', paddingTop: '3rem', color: '#9ca3af' }}>
@@ -122,6 +187,27 @@ export default function PavilionManagementPage() {
 
   const pavilionEvents = allEvents.filter((e) => e.facilityId === pavilion.id)
   const statusColor = getStatusColor(pavilion.status)
+
+
+  const handleUpdateBookingStatus = async (id: string, status: string) => {
+    try {
+      const updated = await pavilionBookingAPI.updateStatus(id, status)
+      setBookings(bookings.map((b) => (b.id === id ? updated : b)))
+      toast.success('Booking status updated')
+    } catch (err) {
+      toast.error('Failed to update status')
+    }
+  }
+
+  const handleDeleteBooking = async (id: string) => {
+    try {
+      await pavilionBookingAPI.delete(id)
+      setBookings(bookings.filter((b) => b.id !== id))
+      toast.success('Booking deleted')
+    } catch (err) {
+      toast.error('Failed to delete booking')
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
@@ -255,7 +341,7 @@ export default function PavilionManagementPage() {
                         {event.eventName}
                       </p>
                       <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: 0 }}>
-                        {event.date} • {event.clientName}
+                        {formatDate(event.date)} • {event.clientName}
                       </p>
                     </div>
                     <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
@@ -279,6 +365,35 @@ export default function PavilionManagementPage() {
             }}
             onAddEvent={handleAddEvent}
           />
+        </div>
+        {/* Bookings List (right column) */}
+        <div>
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1rem' }}>
+            <h3 style={{ margin: 0, marginBottom: '0.75rem' }}>Bookings</h3>
+            {bookings.length === 0 ? (
+              <p style={{ color: '#9ca3af' }}>No bookings yet</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {bookings.map((b) => (
+                  <div key={b.id} style={{ padding: '0.5rem', border: '1px solid #eef2f7', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{b.event_name || b.eventName}</div>
+                      <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>{b.client_name || b.clientName} • {formatDate(b.event_date || b.date)}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <select value={b.status} onChange={(e) => handleUpdateBookingStatus(b.id, e.target.value)} style={{ padding: '0.25rem' }}>
+                        <option value="pending">pending</option>
+                        <option value="confirmed">confirmed</option>
+                        <option value="completed">completed</option>
+                        <option value="cancelled">cancelled</option>
+                      </select>
+                      <button onClick={() => handleDeleteBooking(b.id)} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

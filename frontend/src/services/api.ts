@@ -197,6 +197,49 @@ export const maintenanceAPI = {
   },
 }
 
+// Pavilion booking APIs
+export const pavilionBookingAPI = {
+  create: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const e = await response.json().catch(() => ({}))
+      throw new Error(e.error || 'Failed to create booking')
+    }
+    return response.json()
+  },
+
+  getByPavilion: async (pavilionId: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings?pavilionId=${encodeURIComponent(pavilionId)}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch bookings')
+    return response.json()
+  },
+
+  updateStatus: async (id: string, status: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings/${id}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) throw new Error('Failed to update booking status')
+    return response.json()
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to delete booking')
+    return response.json()
+  },
+}
+
 export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {

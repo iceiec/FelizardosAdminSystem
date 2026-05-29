@@ -125,9 +125,9 @@ export default function EventModal({
             </select>
           </div>
 
-          <div className="form-group">
+          <div className="form-group"  style={{ width: '95%' }}>
             <label className="form-label">
-              Date <span className="required">*</span>
+              Date <span className="required" >*</span>
             </label>
             <input
               type="date"
@@ -139,7 +139,7 @@ export default function EventModal({
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ width: '95%' }}>
             <label className="form-label">
               Client&apos;s Name <span className="required">*</span>
             </label>
@@ -154,7 +154,7 @@ export default function EventModal({
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ width: '95%' }}>
             <label className="form-label">
               Contact Number <span className="required">*</span>
             </label>
@@ -169,7 +169,7 @@ export default function EventModal({
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ width: '95%' }}>
             <label className="form-label">Facebook Account</label>
             <input
               type="text"
@@ -182,7 +182,7 @@ export default function EventModal({
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 640 ? '1fr' : '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
+            <div className="form-group" style={{ width: '90%' }}>
               <label className="form-label">
                 Capacity <span className="required">*</span>
               </label>
@@ -197,7 +197,7 @@ export default function EventModal({
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ width: '90%' }}>
               <label className="form-label">
                 Deposit Amount <span className="required">*</span>
               </label>
@@ -214,7 +214,7 @@ export default function EventModal({
             </div>
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ width: '95%' }}>
             <label className="form-label">
               Total Amount <span className="required">*</span>
             </label>

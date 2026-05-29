@@ -232,7 +232,10 @@ export default function CourtManagementPage() {
                     Add Schedule for {court.name}
                   </button>
                   <button
-                    onClick={() => setEditingCourtId(court.id) || setIsCourtModalOpen(true)}
+                    onClick={() => {
+                      setEditingCourtId(court.id)
+                      setIsCourtModalOpen(true)
+                    }}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
