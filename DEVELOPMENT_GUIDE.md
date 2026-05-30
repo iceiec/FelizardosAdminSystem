@@ -381,6 +381,7 @@ npm install axios react-router-dom
 ### Version Control
 - Create meaningful branches
 - Write clear commit messages
+- Follow the commit format in [COMMIT_GUIDE.md](COMMIT_GUIDE.md)
 - Use .gitignore properly
 - Regular commits (don't do one giant commit)
 

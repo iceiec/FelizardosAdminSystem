@@ -7,9 +7,9 @@ class User {
         const id = uuidv4();
         const passwordHash = await bcrypt.hash(password, 10);
         const query = 
-            `INSERT INTO users (id, email, password_hash, full_name, role, created_at)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-            RETURNING id, email, full_name, role, created_at;`;
+            `INSERT INTO users (id, email, password_hash, full_name, role, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            RETURNING id, email, full_name, role, created_at, updated_at;`;
 
         const result = await pool.query(query, [id, email, passwordHash, fullName, role]);
         return result.rows[0];

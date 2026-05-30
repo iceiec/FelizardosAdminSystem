@@ -12,6 +12,9 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 // Pavilion routes
 app.use('/api/pavilion', require('./routes/pavilion'));
+app.use('/api/pool', require('./routes/pool'));
+app.use('/api/court', require('./routes/court'));
+app.use('/api/maintenance', require('./routes/maintenance'));
 
 //Test route
 app.get('/api/health', async (req, res, next) => {
