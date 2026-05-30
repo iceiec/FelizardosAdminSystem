@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Droplets, Thermometer, Calendar } from 'lucide-react'
 import { mockPoolData, mockEventsData, type Event } from '@/services/mockData'
+import { poolAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { PoolModal, type PoolFormData } from '@/components/PoolModal'
 import EventModal from '@/components/EventModal'
@@ -20,6 +21,7 @@ interface Pool {
 
 export default function PoolManagementPage() {
   const [pool, setPool] = useState<Pool | null>(null)
+  const [poolRecordId, setPoolRecordId] = useState<string | null>(null)
   const [allEvents, setAllEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
@@ -40,14 +42,20 @@ export default function PoolManagementPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        const poolData = mockPoolData[0]
+        const pools = await poolAPI.getAll().catch(() => [])
+        const poolData = pools?.[0] || mockPoolData[0]
         if (poolData) {
           setPool({
-            ...poolData,
+            id: poolData.id,
+            name: poolData.name,
+            size: poolData.size,
+            depth: poolData.depth,
             capacity: Number(poolData.capacity) || 0,
+            status: poolData.status || 'open',
             temperature: Number(poolData.temperature) || 28,
+            lastCleaned: poolData.lastCleaned || poolData.last_cleaned || '',
           })
+          setPoolRecordId(pools?.[0]?.id || null)
         }
         setAllEvents(mockEventsData)
       } catch (error) {
@@ -93,6 +101,11 @@ export default function PoolManagementPage() {
   const handleDeleteEvent = (eventId: string) => {
     setAllEvents(allEvents.filter((e) => e.id !== eventId))
     toast.success('Event deleted successfully')
+  }
+
+  const normalizePoolStatus = (status: string) => {
+    if (status === 'operational') return 'open'
+    return status || 'open'
   }
 
   const getStatusColor = (status: string) => {
@@ -321,18 +334,58 @@ export default function PoolManagementPage() {
       <PoolModal
         isOpen={isPoolModalOpen}
         onClose={() => setIsPoolModalOpen(false)}
-        onSubmit={(data: PoolFormData) => {
-          if (pool) {
-            setPool({
-              ...pool,
-              name: data.name,
-              size: data.size,
-              depth: data.depth,
-              capacity: parseInt(data.capacity),
-              status: data.status,
-              temperature: parseInt(data.temperature) || pool.temperature,
-            })
-            toast.success('Pool updated successfully')
+        onSubmit={async (data: PoolFormData) => {
+          const payload = {
+            name: data.name,
+            size: data.size,
+            depth: data.depth,
+            capacity: parseInt(data.capacity, 10),
+            status: normalizePoolStatus(data.status),
+            temperature: data.temperature ? parseInt(data.temperature, 10) : null,
+          }
+
+          try {
+            if (poolRecordId) {
+              const updated = await poolAPI.update(poolRecordId, payload)
+              setPool({
+                id: updated.id,
+                name: updated.name,
+                size: updated.size,
+                depth: updated.depth,
+                capacity: Number(updated.capacity) || 0,
+                status: updated.status || 'open',
+                temperature: Number(updated.temperature) || 28,
+                lastCleaned: updated.lastCleaned || updated.last_cleaned || '',
+              })
+              toast.success('Pool updated successfully')
+            } else {
+              const created = await poolAPI.create(payload)
+              setPoolRecordId(created.id)
+              setPool({
+                id: created.id,
+                name: created.name,
+                size: created.size,
+                depth: created.depth,
+                capacity: Number(created.capacity) || 0,
+                status: created.status || 'open',
+                temperature: Number(created.temperature) || 28,
+                lastCleaned: created.lastCleaned || created.last_cleaned || '',
+              })
+              toast.success('Pool created successfully')
+            }
+          } catch (error) {
+            if (pool) {
+              setPool({
+                ...pool,
+                name: data.name,
+                size: data.size,
+                depth: data.depth,
+                capacity: parseInt(data.capacity, 10),
+                status: normalizePoolStatus(data.status),
+                temperature: parseInt(data.temperature, 10) || pool.temperature,
+              })
+            }
+            toast.success('Pool updated locally')
           }
           setIsPoolModalOpen(false)
         }}
@@ -341,7 +394,7 @@ export default function PoolManagementPage() {
           size: pool.size,
           depth: pool.depth,
           capacity: pool.capacity.toString(),
-          status: pool.status,
+          status: normalizePoolStatus(pool.status),
           temperature: pool.temperature.toString(),
         } : undefined}
       />

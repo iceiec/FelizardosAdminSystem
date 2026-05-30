@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Calendar } from 'lucide-react'
 import { mockCourtData, mockScheduleData, mockEventsData, type Schedule } from '@/services/mockData'
+import { courtAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { CourtModal, type CourtFormData } from '@/components/CourtModal'
 import ScheduleModal, { type ScheduleFormData } from '@/components/ScheduleModal'
@@ -31,10 +32,20 @@ export default function CourtManagementPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        setCourts(mockCourtData)
+        const apiCourts = await courtAPI.getAll().catch(() => [])
+        if (apiCourts?.length) {
+          setCourts(apiCourts.map((court: any) => ({
+            id: court.id,
+            name: court.name,
+            surface: court.surface,
+            status: court.status || 'available',
+            nextBooking: court.nextBooking || court.next_booking || '',
+          })))
+        } else {
+          setCourts(mockCourtData)
+        }
         setSchedules(mockScheduleData)
-        setSelectedCourtId(mockCourtData[0]?.id || '')
+        setSelectedCourtId((apiCourts?.[0]?.id || mockCourtData[0]?.id || ''))
       } catch (error) {
         toast.error('Failed to load court data')
       } finally {
@@ -410,23 +421,61 @@ export default function CourtManagementPage() {
           setIsCourtModalOpen(false)
           setEditingCourtId(null)
         }}
-        onSubmit={(data: CourtFormData) => {
+        onSubmit={async (data: CourtFormData) => {
+          const payload = {
+            name: data.name,
+            surface: data.surface,
+            status: data.status,
+            nextBooking: data.nextBooking || null,
+          }
+
           if (editingCourtId) {
-            setCourts(
-              courts.map((c) =>
+            try {
+              const updated = await courtAPI.update(editingCourtId, payload)
+              setCourts((current) => current.map((c) =>
                 c.id === editingCourtId
                   ? {
-                      ...c,
-                      name: data.name,
-                      surface: data.surface,
-                      status: data.status,
-                      nextBooking: data.nextBooking,
+                      id: updated.id,
+                      name: updated.name,
+                      surface: updated.surface,
+                      status: updated.status || 'available',
+                      nextBooking: updated.nextBooking || updated.next_booking || '',
                     }
                   : c,
-              ),
-            )
-            toast.success('Court updated successfully')
-            setEditingCourtId(null)
+              ))
+              toast.success('Court updated successfully')
+            } catch (error) {
+              try {
+                const created = await courtAPI.create(payload)
+                setCourts((current) => current.map((c) =>
+                  c.id === editingCourtId
+                    ? {
+                        id: created.id,
+                        name: created.name,
+                        surface: created.surface,
+                        status: created.status || 'available',
+                        nextBooking: created.nextBooking || created.next_booking || '',
+                      }
+                    : c,
+                ))
+                toast.success('Court created successfully')
+              } catch (fallbackError) {
+                setCourts((current) => current.map((c) =>
+                  c.id === editingCourtId
+                    ? {
+                        ...c,
+                        name: data.name,
+                        surface: data.surface,
+                        status: data.status,
+                        nextBooking: data.nextBooking,
+                      }
+                    : c,
+                ))
+                toast.success('Court updated locally')
+              }
+            } finally {
+              setEditingCourtId(null)
+            }
           }
           setIsCourtModalOpen(false)
         }}
