@@ -62,6 +62,54 @@ export default function SettingsPage() {
     }
   }
 
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const rawPricing = localStorage.getItem('defaultPricing')
+      if (rawPricing) setDefaultPricing(JSON.parse(rawPricing))
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      const rawFacilities = localStorage.getItem('facilities')
+      if (rawFacilities) setFacilities(JSON.parse(rawFacilities))
+    } catch (e) {
+      // ignore
+    }
+  }, [])
+
+  const [addons, setAddons] = useState<Array<{ name: string; price: number }>>([])
+  const [newAddonName, setNewAddonName] = useState('')
+  const [newAddonPrice, setNewAddonPrice] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('addons')
+      if (raw) setAddons(JSON.parse(raw))
+    } catch (e) {}
+  }, [])
+
+  const handleAddAddon = () => {
+    if (!newAddonName) return
+    const a = { name: newAddonName, price: parseFloat(newAddonPrice) || 0 }
+    setAddons((cur) => [...cur, a])
+    setNewAddonName('')
+    setNewAddonPrice('')
+  }
+
+  const handleDeleteAddon = (name: string) => setAddons((cur) => cur.filter((a) => a.name !== name))
+
+  const handleSaveAddons = () => {
+    try {
+      localStorage.setItem('addons', JSON.stringify(addons))
+      window.dispatchEvent(new Event('settings:updated'))
+      alert('Add-ons saved')
+    } catch (e) {
+      alert('Failed to save add-ons')
+    }
+  }
+
   const handleEditFacility = (facility: Facility) => {
     setEditingFacility(facility)
     setNewFacilityName(facility.name)
@@ -99,6 +147,27 @@ export default function SettingsPage() {
 
   const handleUpdatePricing = (key: keyof DefaultPricing, value: number) => {
     setDefaultPricing({ ...defaultPricing, [key]: value })
+  }
+
+  const handleSaveFacilities = () => {
+    try {
+      localStorage.setItem('facilities', JSON.stringify(facilities))
+      window.dispatchEvent(new Event('settings:updated'))
+      alert('Facilities saved')
+    } catch (e) {
+      alert('Failed to save facilities')
+    }
+  }
+
+  // dispatch settings updated when saving pricing too
+  const handleSavePricing = () => {
+    try {
+      localStorage.setItem('defaultPricing', JSON.stringify(defaultPricing))
+      window.dispatchEvent(new Event('settings:updated'))
+      alert('Default pricing settings saved successfully!')
+    } catch (e) {
+      alert('Failed to save pricing')
+    }
   }
 
   const getFacilityTypeLabel = (type: string) => {
@@ -369,10 +438,7 @@ export default function SettingsPage() {
         {/* Save Button */}
         <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
           <button
-            onClick={() => {
-              localStorage.setItem('defaultPricing', JSON.stringify(defaultPricing))
-              alert('Default pricing settings saved successfully!')
-            }}
+            onClick={handleSavePricing}
             style={{
               padding: '0.75rem 1.5rem',
               background: '#22c55e',
@@ -388,6 +454,44 @@ export default function SettingsPage() {
             onMouseLeave={(e) => (e.currentTarget.style.background = '#22c55e')}
           >
             Save Pricing Settings
+          </button>
+          <button
+            onClick={handleSaveFacilities}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '0.9375rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#2563eb')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#3b82f6')}
+          >
+            Save Facilities
+          </button>
+          <button
+            onClick={handleSaveAddons}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: '#8b5cf6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '0.9375rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#7c3aed')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#8b5cf6')}
+          >
+            Save Add-ons
           </button>
         </div>
       </div>
@@ -707,6 +811,24 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      {/* Add-ons Management */}
+      <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>Add-ons</h2>
+        <p style={{ color: '#6b7280' }}>Define add-on services (extras) and their default prices.</p>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', marginBottom: '1rem' }}>
+          <input placeholder="Add-on name" value={newAddonName} onChange={(e) => setNewAddonName(e.target.value)} style={{ padding: '0.5rem', flex: 1 }} />
+          <input placeholder="Price" type="number" value={newAddonPrice} onChange={(e) => setNewAddonPrice(e.target.value)} style={{ padding: '0.5rem', width: '140px' }} />
+          <button onClick={handleAddAddon} className="btn btn-primary">Add</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {addons.length === 0 ? <p style={{ color: '#9ca3af' }}>No add-ons defined.</p> : addons.map((a) => (
+            <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', background: '#f9fafb' }}>
+              <div>{a.name} • ₱{a.price.toLocaleString()}</div>
+              <button onClick={() => handleDeleteAddon(a.name)} className="btn btn-danger">Delete</button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

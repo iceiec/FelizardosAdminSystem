@@ -18,11 +18,20 @@ export interface ScheduleFormData {
   clientContact: string
   depositAmount: number
   totalAmount: number
+  status?: string
 }
 
-const COURT_TIME_SLOTS: Record<string, string[]> = {
-  '1': ['4pm-6pm', '6pm-8pm', '8pm-10pm', '10pm-12am', 'Custom'],
-  '2': ['5pm-7pm', '7pm-9pm', '9pm-11pm', 'Custom'],
+const getTimeSlotsForCourt = (courtName: string | undefined) => {
+  if (!courtName) return ['Custom']
+  const name = courtName.toLowerCase()
+  if (name.includes('juliet') || name.includes('juliet court') || name.includes('juliet')) {
+    return ['4pm-6pm', '6pm-8pm', '8pm-10pm', '10pm-12am', 'Custom']
+  }
+  if (name.includes('andoy') || name.includes('andoy court') || name.includes('andoy')) {
+    return ['5pm-7pm', '7pm-9pm', '9pm-11pm', 'Custom']
+  }
+  // default slots
+  return ['4pm-6pm', '6pm-8pm', '8pm-10pm', 'Custom']
 }
 
 export default function ScheduleModal({
@@ -42,6 +51,7 @@ export default function ScheduleModal({
           clientContact: initialSchedule.clientContact,
           depositAmount: initialSchedule.depositAmount,
           totalAmount: initialSchedule.totalAmount,
+          status: (initialSchedule as any).status || 'pending',
         }
       : {
           courtId: courts[0]?.id || '',
@@ -51,15 +61,16 @@ export default function ScheduleModal({
           clientContact: '',
           depositAmount: 500,
           totalAmount: 1000,
+          status: 'pending',
         },
   )
 
   const [customTime, setCustomTime] = useState('')
 
-  const availableTimeSlots = useMemo(
-    () => COURT_TIME_SLOTS[formData.courtId] || [],
-    [formData.courtId],
-  )
+  const availableTimeSlots = useMemo(() => {
+    const court = courts.find((c) => c.id === formData.courtId)
+    return getTimeSlotsForCourt(court?.name)
+  }, [formData.courtId, courts])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -215,6 +226,15 @@ export default function ScheduleModal({
 
           {/* Form Actions */}
           <div className="flex gap-2 pt-4">
+            <div style={{ flex: 1 }}>
+              <label className="block text-sm font-semibold mb-2">Status</label>
+              <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                <option value="pending">pending</option>
+                <option value="confirmed">confirmed</option>
+                <option value="completed">completed</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </div>
             <button type="button" onClick={onClose} className="btn btn-secondary flex-1">
               Cancel
             </button>

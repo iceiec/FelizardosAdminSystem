@@ -64,6 +64,8 @@ async function main() {
     const migrations = [
       path.join(__dirname, '..', 'db', 'migrations', '20260530_create_core_facility_tables.sql'),
       path.join(__dirname, '..', 'db', 'migrations', '20260531_fix_users_updated_at.sql'),
+      path.join(__dirname, '..', 'db', 'migrations', '20260531_create_pool_court_booking_tables.sql'),
+      path.join(__dirname, '..', 'db', 'migrations', '20260531_seed_demo_facility_data.sql'),
       path.join(__dirname, '..', 'db', 'migrations', '20260529_add_booking_fields_pavilion_bookings.sql'),
       path.join(__dirname, '..', 'db', 'migrations', '20260529_add_client_fields_pavilion_bookings.sql')
     ];

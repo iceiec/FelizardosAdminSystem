@@ -1,5 +1,4 @@
 const PavilionBooking = require('../models/PavilionBooking')
-const { validate: validateUuid } = require('uuid')
 
 const toDateOnly = (value) => {
   if (!value) return null
@@ -59,7 +58,6 @@ exports.getByPavilion = async (req, res, next) => {
   try {
     const { pavilionId } = req.query
     if (!pavilionId) return res.status(400).json({ error: 'pavilionId query param required' })
-    if (!validateUuid(pavilionId)) return res.status(400).json({ error: 'Invalid pavilionId' })
     const rows = await PavilionBooking.getAllByPavilion(pavilionId)
     return res.json(rows)
   } catch (err) { next(err) }
@@ -82,6 +80,55 @@ exports.updateStatus = async (req, res, next) => {
     const updated = await PavilionBooking.updateStatus(id, status)
     return res.json(updated)
   } catch (err) { next(err) }
+}
+
+exports.update = async (req, res, next) => {
+  try {
+    const {
+      pavilionId,
+      eventName,
+      date,
+      startDate,
+      endDate,
+      clientName,
+      clientContact,
+      clientFacebook,
+      capacity,
+      depositAmount,
+      totalAmount,
+      extras,
+      status,
+    } = req.body
+
+    if (!pavilionId || !eventName || !clientName) {
+      return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    const normalizedDate = toDateOnly(date)
+    const normalizedStartDate = startDate ? new Date(startDate).toISOString() : null
+    const normalizedEndDate = endDate ? new Date(endDate).toISOString() : null
+
+    const updated = await PavilionBooking.update(
+      req.params.id,
+      pavilionId,
+      eventName,
+      clientName,
+      clientContact,
+      clientFacebook,
+      normalizedDate,
+      normalizedStartDate,
+      normalizedEndDate,
+      capacity || 0,
+      depositAmount || 0,
+      totalAmount || 0,
+      extras || [],
+      status || 'pending'
+    )
+
+    return res.json(updated)
+  } catch (err) {
+    next(err)
+  }
 }
 
 exports.delete = async (req, res, next) => {

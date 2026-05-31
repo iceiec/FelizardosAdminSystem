@@ -10,9 +10,12 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ events, facilityId, onDateClick, onAddEvent }: CalendarViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date(2024, 4, 1))
+  const [currentDate, setCurrentDate] = useState(new Date(new Date().getFullYear(), 4, 1))
 
   const getFacilityEvents = (dateStr: string) => {
+    if (!facilityId) {
+      return events.filter((e) => e.date === dateStr)
+    }
     return events.filter((e) => e.facilityId === facilityId && e.date === dateStr)
   }
 
@@ -103,15 +106,25 @@ export default function CalendarView({ events, facilityId, onDateClick, onAddEve
               <div
                 key={event.id}
                 style={{
-                  fontSize: '0.65rem',
-                  color: '#dc2626',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.125rem',
+                  fontSize: '0.7rem',
                   fontWeight: '600',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                 }}
               >
-                {event.eventName}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '999px', background: event.status === 'cancelled' ? '#ef4444' : event.status === 'confirmed' ? '#15803d' : event.status === 'completed' ? '#2563eb' : '#f59e0b' }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.eventName}</span>
+                </div>
+                {((event as any).courtName || (event as any).facilityName) && (
+                  <div style={{ fontSize: '0.65rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {(event as any).courtName || (event as any).facilityName}
+                  </div>
+                )}
               </div>
             ))}
             {dayEvents.length > 2 && (

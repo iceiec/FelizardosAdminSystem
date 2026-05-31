@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,52 @@ export default function DashboardPage() {
     courts: 8,
     maintenance: 23,
   })
+  const [statusCounts, setStatusCounts] = useState({
+    pavilion: { pending: 0, confirmed: 0, completed: 0, cancelled: 0 },
+    pool: { pending: 0, confirmed: 0, completed: 0, cancelled: 0 },
+    court: { pending: 0, confirmed: 0, completed: 0, cancelled: 0 },
+  })
+
+  useEffect(() => {
+    const fetchStatusCounts = async () => {
+      try {
+        const pavilionModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/pavilion')).json().catch(() => ({ value: [] }))
+        const pavs = pavilionModule.value || []
+        const pavilionCounts = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 }
+        await Promise.all(pavs.map(async (p: any) => {
+          try {
+            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/pavilion/bookings?pavilionId=${encodeURIComponent(p.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
+            ;(rows || []).forEach((r: any) => { pavilionCounts[r.status || 'pending'] = (pavilionCounts[r.status || 'pending'] || 0) + 1 })
+          } catch (e) {}
+        }))
+
+        const poolModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/pool')).json().catch(() => ({ value: [] }))
+        const pools = poolModule.value || []
+        const poolCounts = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 }
+        await Promise.all(pools.map(async (p: any) => {
+          try {
+            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/pool/bookings?poolId=${encodeURIComponent(p.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
+            ;(rows || []).forEach((r: any) => { poolCounts[r.status || 'pending'] = (poolCounts[r.status || 'pending'] || 0) + 1 })
+          } catch (e) {}
+        }))
+
+        const courtModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/court')).json().catch(() => ({ value: [] }))
+        const courts = courtModule.value || []
+        const courtCounts = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 }
+        await Promise.all(courts.map(async (c: any) => {
+          try {
+            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/court/schedules?courtId=${encodeURIComponent(c.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
+            ;(rows || []).forEach((r: any) => { courtCounts[r.status || 'pending'] = (courtCounts[r.status || 'pending'] || 0) + 1 })
+          } catch (e) {}
+        }))
+
+        setStatusCounts({ pavilion: pavilionCounts, pool: poolCounts, court: courtCounts })
+      } catch (e) {
+        // ignore
+      }
+    }
+    fetchStatusCounts()
+  }, [])
 
   const modules: ModuleCard[] = [
     {
@@ -353,6 +399,39 @@ export default function DashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Status Summaries */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+          <h4 style={{ margin: 0, marginBottom: '0.75rem' }}>Pavilion Booking Status</h4>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ flex: 1 }}>Pending: <strong>{statusCounts.pavilion.pending}</strong></div>
+            <div style={{ flex: 1 }}>Confirmed: <strong>{statusCounts.pavilion.confirmed}</strong></div>
+            <div style={{ flex: 1 }}>Completed: <strong>{statusCounts.pavilion.completed}</strong></div>
+            <div style={{ flex: 1 }}>Cancelled: <strong>{statusCounts.pavilion.cancelled}</strong></div>
+          </div>
+        </div>
+
+        <div style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+          <h4 style={{ margin: 0, marginBottom: '0.75rem' }}>Pool Booking Status</h4>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ flex: 1 }}>Pending: <strong>{statusCounts.pool.pending}</strong></div>
+            <div style={{ flex: 1 }}>Confirmed: <strong>{statusCounts.pool.confirmed}</strong></div>
+            <div style={{ flex: 1 }}>Completed: <strong>{statusCounts.pool.completed}</strong></div>
+            <div style={{ flex: 1 }}>Cancelled: <strong>{statusCounts.pool.cancelled}</strong></div>
+          </div>
+        </div>
+
+        <div style={{ padding: '1rem', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+          <h4 style={{ margin: 0, marginBottom: '0.75rem' }}>Court Schedule Status</h4>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ flex: 1 }}>Pending: <strong>{statusCounts.court.pending}</strong></div>
+            <div style={{ flex: 1 }}>Confirmed: <strong>{statusCounts.court.confirmed}</strong></div>
+            <div style={{ flex: 1 }}>Completed: <strong>{statusCounts.court.completed}</strong></div>
+            <div style={{ flex: 1 }}>Cancelled: <strong>{statusCounts.court.cancelled}</strong></div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}

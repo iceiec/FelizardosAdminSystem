@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Search, AlertCircle, CheckCircle, Clock } from 'lucide-react'
-import { mockMaintenanceData } from '@/services/mockData'
+// no dummy data: use backend results or empty list
 import { maintenanceAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { MaintenanceModal, type MaintenanceFormData } from '@/components/MaintenanceModal'
@@ -24,8 +24,8 @@ export default function MaintenancePage() {
     const loadData = async () => {
       try {
         const apiTasks = await maintenanceAPI.getAll().catch(() => [])
-        if (apiTasks?.length) {
-          setTasks(apiTasks.map((task: any) => ({
+        setTasks(
+          (apiTasks || []).map((task: any) => ({
             id: task.id,
             title: task.title,
             location: task.location,
@@ -34,10 +34,8 @@ export default function MaintenancePage() {
             assignee: task.assignee,
             dueDate: task.dueDate || task.due_date,
             description: task.description || '',
-          })))
-        } else {
-          setTasks(mockMaintenanceData)
-        }
+          })),
+        )
       } catch (error) {
         toast.error('Failed to load maintenance data')
       } finally {

@@ -24,6 +24,7 @@ export interface Event {
   depositAmount: number
   totalAmount: number
   extras: string[]
+  status?: string
   createdAt: string
 }
 

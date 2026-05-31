@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Droplets, Thermometer, Calendar } from 'lucide-react'
-import { mockPoolData, mockEventsData, type Event } from '@/services/mockData'
-import { poolAPI } from '@/services/api'
+import { mockPoolData, type Event } from '@/services/mockData'
+import { poolAPI, poolBookingAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { PoolModal, type PoolFormData } from '@/components/PoolModal'
 import EventModal from '@/components/EventModal'
@@ -18,6 +18,27 @@ interface Pool {
   temperature: number
   lastCleaned: string
 }
+
+const mapBookingToEvent = (booking: any): Event => ({
+  id: booking.id,
+  facilityId: booking.poolId || booking.pool_id || '',
+  facilityName: booking.poolName || booking.pool_name || booking.facilityName || '',
+  eventName: booking.eventName || booking.event_name || '',
+  clientName: booking.clientName || booking.client_name || '',
+  clientContact: booking.clientContact || booking.client_contact || '',
+  clientFacebook: booking.clientFacebook || booking.client_facebook || '',
+  // Normalize to YYYY-MM-DD so CalendarView matches dates
+  date: (() => {
+    const d = booking.eventDate || booking.event_date || booking.date || ''
+    return d ? String(d).slice(0, 10) : ''
+  })(),
+  capacity: Number(booking.capacity || 0),
+  depositAmount: Number(booking.depositAmount || booking.deposit_amount || 0),
+  totalAmount: Number(booking.totalAmount || booking.total_amount || 0),
+  extras: Array.isArray(booking.extras) ? booking.extras : [],
+  status: booking.status || 'pending',
+  createdAt: booking.createdAt || booking.created_at || '',
+})
 
 export default function PoolManagementPage() {
   const [pool, setPool] = useState<Pool | null>(null)
@@ -45,9 +66,19 @@ export default function PoolManagementPage() {
         const pools = await poolAPI.getAll().catch(() => [])
         const poolData = pools?.[0] || mockPoolData[0]
         if (poolData) {
+          // apply name override from settings if available
+          let nameOverride = poolData.name
+          try {
+            const raw = localStorage.getItem('facilities')
+            if (raw) {
+              const facs = JSON.parse(raw) as any[]
+              const found = facs.find((f) => f.id === poolData.id)
+              if (found && found.name) nameOverride = found.name
+            }
+          } catch (e) {}
           setPool({
             id: poolData.id,
-            name: poolData.name,
+            name: nameOverride,
             size: poolData.size,
             depth: poolData.depth,
             capacity: Number(poolData.capacity) || 0,
@@ -57,7 +88,15 @@ export default function PoolManagementPage() {
           })
           setPoolRecordId(pools?.[0]?.id || null)
         }
-        setAllEvents(mockEventsData)
+
+        if (poolData?.id) {
+          try {
+            const bookings = await poolBookingAPI.getByPool(poolData.id)
+            setAllEvents(bookings.length ? bookings.map((b: any) => ({ ...mapBookingToEvent(b), facilityName: poolData.name })) : [])
+          } catch {
+            setAllEvents([])
+          }
+        }
       } catch (error) {
         toast.error('Failed to load pool data')
       } finally {
@@ -65,6 +104,18 @@ export default function PoolManagementPage() {
       }
     }
     loadData()
+    const onSettings = () => {
+      try {
+        const raw = localStorage.getItem('facilities')
+        if (raw && pool) {
+          const facs = JSON.parse(raw) as any[]
+          const found = facs.find((f) => f.id === pool.id)
+          if (found && found.name) setPool((p) => p ? { ...p, name: found.name } : p)
+        }
+      } catch (e) {}
+    }
+    window.addEventListener('settings:updated', onSettings)
+    return () => window.removeEventListener('settings:updated', onSettings)
   }, [])
 
   const handleAddEvent = () => {
@@ -77,30 +128,69 @@ export default function PoolManagementPage() {
     setIsDetailsModalOpen(true)
   }
 
-  const handleSaveEvent = (eventData: Omit<Event, 'id' | 'createdAt'>) => {
-    if (editingEvent) {
-      setAllEvents(
-        allEvents.map((e) =>
-          e.id === editingEvent.id ? { ...e, ...eventData } : e,
-        ),
-      )
-      toast.success('Event updated successfully')
-    } else {
-      const newEvent: Event = {
-        id: `evt-${Date.now()}`,
-        ...eventData,
-        createdAt: new Date().toISOString().split('T')[0],
+  const handleSaveEvent = async (eventData: Omit<Event, 'id' | 'createdAt'>) => {
+    const payload = {
+      poolId: pool?.id || eventData.facilityId,
+      eventName: eventData.eventName,
+      clientName: eventData.clientName,
+      clientContact: eventData.clientContact,
+      clientFacebook: eventData.clientFacebook || null,
+      eventDate: eventData.date,
+      capacity: eventData.capacity,
+      depositAmount: eventData.depositAmount,
+      totalAmount: eventData.totalAmount,
+      extras: eventData.extras,
+      status: (eventData as any).status || 'pending',
+    }
+
+    try {
+      if (editingEvent) {
+        const updated = await poolBookingAPI.update(editingEvent.id, payload)
+        const mapped = mapBookingToEvent(updated)
+        setAllEvents((current) => current.map((e) => (e.id === editingEvent.id ? mapped : e)))
+        toast.success('Booking updated successfully')
+      } else if (pool) {
+        const created = await poolBookingAPI.create(payload)
+        setAllEvents((current) => [...current, mapBookingToEvent(created)])
+        toast.success('Booking created successfully')
+      } else {
+        const newEvent: Event = {
+          id: `evt-${Date.now()}`,
+          ...eventData,
+          createdAt: new Date().toISOString().split('T')[0],
+        }
+        setAllEvents((current) => [...current, newEvent])
+        toast.success('Event created successfully')
       }
-      setAllEvents([...allEvents, newEvent])
-      toast.success('Event created successfully')
+    } catch (error) {
+      if (editingEvent) {
+        setAllEvents((current) =>
+          current.map((e) => (e.id === editingEvent.id ? { ...e, ...eventData } : e)),
+        )
+        toast.success('Event updated locally')
+      } else {
+        const newEvent: Event = {
+          id: `evt-${Date.now()}`,
+          ...eventData,
+          createdAt: new Date().toISOString().split('T')[0],
+        }
+        setAllEvents((current) => [...current, newEvent])
+        toast.success('Event created locally')
+      }
     }
     setIsEventModalOpen(false)
     setEditingEvent(null)
   }
 
-  const handleDeleteEvent = (eventId: string) => {
-    setAllEvents(allEvents.filter((e) => e.id !== eventId))
-    toast.success('Event deleted successfully')
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      await poolBookingAPI.delete(eventId)
+      setAllEvents((current) => current.filter((e) => e.id !== eventId))
+      toast.success('Booking deleted successfully')
+    } catch (error) {
+      setAllEvents((current) => current.filter((e) => e.id !== eventId))
+      toast.success('Event deleted locally')
+    }
   }
 
   const normalizePoolStatus = (status: string) => {
@@ -281,7 +371,7 @@ export default function PoolManagementPage() {
                       </p>
                     </div>
                     <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
-                      ₦{Number(event.totalAmount || 0).toLocaleString()}
+                      ₱{Number(event.totalAmount || 0).toLocaleString()}
                     </span>
                   </div>
                 ))}
@@ -328,6 +418,8 @@ export default function PoolManagementPage() {
         onDelete={handleDeleteEvent}
         events={poolEvents}
         selectedDate={selectedDate}
+        facilityName={pool?.name || "Felizardos Event's Place"}
+        receiptPrefix="Pool"
       />
 
       {/* Pool Modal */}
