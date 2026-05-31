@@ -1,6 +1,7 @@
 import React from 'react'
 import { X, Phone, DollarSign, Printer, Clock } from 'lucide-react'
 import type { Schedule } from '../services/mockData'
+import { downloadReceiptPdf, formatReceiptAmount, formatReceiptDate } from '@/lib/receiptPdf'
 
 interface ScheduleDetailsModalProps {
   isOpen: boolean
@@ -10,6 +11,7 @@ interface ScheduleDetailsModalProps {
   schedules: Schedule[]
   selectedDate: string
   courtName: string
+  courts: Array<{ id: string; name: string }>
 }
 
 export default function ScheduleDetailsModal({
@@ -20,98 +22,49 @@ export default function ScheduleDetailsModal({
   schedules,
   selectedDate,
   courtName,
+  courts,
 }: ScheduleDetailsModalProps) {
   if (!isOpen) return null
 
-  const daySchedules = schedules.filter((s) => s.date === selectedDate)
+  const normalizeDate = (value: string) => (value ? String(value).slice(0, 10) : '')
+
+  const daySchedules = schedules.filter((s) => normalizeDate(s.date) === normalizeDate(selectedDate))
+
+  const resolveCourtName = (schedule: Schedule) => {
+    return courts.find((court) => court.id === schedule.courtId)?.name || courtName || 'Court'
+  }
 
   const handlePrint = (schedule: Schedule) => {
-    const receiptContent = `
-<html>
-<head>
-<title>Receipt - ${courtName} Booking</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  .header { text-align: center; margin-bottom: 20px; }
-  .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-  .subtitle { font-size: 14px; color: #666; }
-  .divider { border-top: 1px solid #ccc; margin: 15px 0; }
-  .details { margin-bottom: 20px; }
-  .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-  .label { font-weight: bold; }
-  .section-title { font-weight: bold; margin-top: 15px; margin-bottom: 8px; }
-  .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="title">Court Booking Receipt</div>
-  <div class="subtitle">Event Management System</div>
-</div>
-
-<div class="details">
-  <div class="section-title">Booking Information</div>
-  <div class="detail-row">
-    <span class="label">Court:</span>
-    <span>${courtName}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Date:</span>
-    <span>${new Date(schedule.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Time Slot:</span>
-    <span>${schedule.timeSlot}</span>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="details">
-  <div class="section-title">Client Information</div>
-  <div class="detail-row">
-    <span class="label">Client Name:</span>
-    <span>${schedule.clientName}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Contact:</span>
-    <span>${schedule.clientContact}</span>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="details">
-  <div class="section-title">Payment Summary</div>
-  <div class="detail-row">
-    <span class="label">Deposit Amount:</span>
-    <span>₱${schedule.depositAmount.toLocaleString()}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Total Amount:</span>
-    <span>₱${schedule.totalAmount.toLocaleString()}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Remaining Balance:</span>
-    <span>₱${(schedule.totalAmount - schedule.depositAmount).toLocaleString()}</span>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="footer">
-  <p>This receipt was generated on ${new Date().toLocaleString()}</p>
-  <p>Please keep this receipt for your records.</p>
-</div>
-</body>
-</html>
-    `
-    const printWindow = window.open('', '', 'height=600,width=800')
-    if (printWindow) {
-      printWindow.document.write(receiptContent)
-      printWindow.document.close()
-      printWindow.print()
-    }
+    const courtLabel = resolveCourtName(schedule)
+    const scheduleDate = formatReceiptDate(schedule.date)
+    const remainingBalance = Number(schedule.totalAmount || 0) - Number(schedule.depositAmount || 0)
+    downloadReceiptPdf({
+      facilityName: 'FJA Basketball',
+      documentTitle: 'Court Booking Receipt',
+      fileName: `${courtLabel}_${schedule.timeSlot || 'time'}_${schedule.clientName || 'client'}_${scheduleDate}`,
+      summaryRows: [
+        { label: 'Court', value: courtLabel },
+        { label: 'Date', value: scheduleDate },
+        { label: 'Time Slot', value: schedule.timeSlot },
+      ],
+      sections: [
+        {
+          title: 'Client Information',
+          rows: [
+            { label: 'Client Name', value: schedule.clientName },
+            { label: 'Contact', value: schedule.clientContact },
+          ],
+        },
+        {
+          title: 'Payment Summary',
+          rows: [
+            { label: 'Deposit Amount', value: formatReceiptAmount(schedule.depositAmount) },
+            { label: 'Total Amount', value: formatReceiptAmount(schedule.totalAmount) },
+            { label: 'Remaining Balance', value: formatReceiptAmount(remainingBalance) },
+          ],
+        },
+      ],
+    })
   }
 
   return (
@@ -152,13 +105,20 @@ export default function ScheduleDetailsModal({
             flexShrink: 0,
           }}
         >
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>
-            Schedules on {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            })}
-          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>
+              Schedules on {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+              })}
+            </h2>
+            {courtName && (
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                Court: {courtName}
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -208,6 +168,11 @@ export default function ScheduleDetailsModal({
                         </h3>
                       </div>
                       <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{schedule.clientName}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.25rem 0 0' }}>
+                        {resolveCourtName(schedule) !== 'Court' && (
+                          <>Court: {resolveCourtName(schedule)}</>
+                        )}
+                      </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button

@@ -59,6 +59,45 @@ class PavilionBooking {
     return result.rows[0]
   }
 
+  static async update(id, pavilionId, eventName, clientName, clientContact, clientFacebook, eventDate, startDate, endDate, capacity, depositAmount, totalAmount, extras, status) {
+    const query = `
+      UPDATE pavilion_bookings
+      SET pavilion_id = $2,
+          event_name = $3,
+          client_name = $4,
+          client_contact = $5,
+          client_facebook = $6,
+          event_date = $7,
+          start_date = $8,
+          end_date = $9,
+          capacity = $10,
+          deposit_amount = $11,
+          total_amount = $12,
+          extras = $13,
+          status = $14,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `
+    const result = await db.query(query, [
+      id,
+      pavilionId,
+      eventName,
+      clientName,
+      clientContact,
+      clientFacebook || null,
+      eventDate || null,
+      startDate || null,
+      endDate || null,
+      capacity || 0,
+      depositAmount || 0,
+      totalAmount || 0,
+      JSON.stringify(extras || []),
+      status || 'pending',
+    ])
+    return result.rows[0]
+  }
+
   static async delete(id) {
     const query = 'DELETE FROM pavilion_bookings WHERE id = $1'
     await db.query(query, [id])

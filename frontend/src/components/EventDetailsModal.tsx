@@ -1,6 +1,7 @@
 import React from 'react'
 import { X, Phone, Facebook, Users, DollarSign, Printer } from 'lucide-react'
 import type { Event } from '../services/mockData'
+import { downloadReceiptPdf, formatReceiptAmount, formatReceiptDate } from '@/lib/receiptPdf'
 
 interface EventDetailsModalProps {
   isOpen: boolean
@@ -9,6 +10,8 @@ interface EventDetailsModalProps {
   onDelete: (eventId: string) => void
   events: Event[]
   selectedDate: string
+  receiptPrefix: string
+  facilityName?: string
 }
 
 export default function EventDetailsModal({
@@ -18,116 +21,46 @@ export default function EventDetailsModal({
   onDelete,
   events,
   selectedDate,
+  receiptPrefix,
 }: EventDetailsModalProps) {
   if (!isOpen) return null
 
   const dayEvents = events.filter((e) => e.date === selectedDate)
 
   const handlePrint = (event: Event) => {
-    const receiptContent = `
-<html>
-<head>
-<title>Receipt - ${event.eventName}</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  .header { text-align: center; margin-bottom: 20px; }
-  .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-  .subtitle { font-size: 14px; color: #666; }
-  .divider { border-top: 1px solid #ccc; margin: 15px 0; }
-  .details { margin-bottom: 20px; }
-  .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-  .label { font-weight: bold; }
-  .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; font-size: 16px; }
-  .section-title { font-weight: bold; margin-top: 15px; margin-bottom: 8px; }
-  .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="title">Receipt</div>
-  <div class="subtitle">Event Management System</div>
-</div>
-
-<div class="details">
-  <div class="section-title">Event Information</div>
-  <div class="detail-row">
-    <span class="label">Event Name:</span>
-    <span>${event.eventName}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Date:</span>
-    <span>${new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Guest Capacity:</span>
-    <span>${event.capacity} people</span>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="details">
-  <div class="section-title">Client Information</div>
-  <div class="detail-row">
-    <span class="label">Client Name:</span>
-    <span>${event.clientName}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Contact:</span>
-    <span>${event.clientContact}</span>
-  </div>
-  ${event.clientFacebook ? `
-  <div class="detail-row">
-    <span class="label">Facebook:</span>
-    <span>${event.clientFacebook}</span>
-  </div>
-  ` : ''}
-</div>
-
-<div class="divider"></div>
-
-<div class="details">
-  <div class="section-title">Payment Summary</div>
-  <div class="detail-row">
-    <span class="label">Deposit Amount:</span>
-    <span>₱${event.depositAmount.toLocaleString()}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Total Amount:</span>
-    <span>₱${event.totalAmount.toLocaleString()}</span>
-  </div>
-  <div class="detail-row">
-    <span class="label">Remaining Balance:</span>
-    <span>₱${(event.totalAmount - event.depositAmount).toLocaleString()}</span>
-  </div>
-</div>
-
-${event.extras && event.extras.length > 0 ? `
-<div class="divider"></div>
-
-<div class="details">
-  <div class="section-title">Extras</div>
-  <div class="detail-row">
-    <span>${event.extras.join(', ')}</span>
-  </div>
-</div>
-` : ''}
-
-<div class="divider"></div>
-
-<div class="footer">
-  <p>This receipt was generated on ${new Date().toLocaleString()}</p>
-  <p>Please keep this receipt for your records.</p>
-</div>
-</body>
-</html>
-    `
-    const printWindow = window.open('', '', 'height=600,width=800')
-    if (printWindow) {
-      printWindow.document.write(receiptContent)
-      printWindow.document.close()
-      printWindow.print()
-    }
+    const eventDate = formatReceiptDate(event.date)
+    const remainingBalance = Number(event.totalAmount || 0) - Number(event.depositAmount || 0)
+    downloadReceiptPdf({
+      facilityName: facilityName || 'Felizardos Event\'s Place',
+      documentTitle: 'Event Receipt',
+      fileName: `${receiptPrefix || 'Pavilion'}_${event.eventName || 'event'}_${event.clientName || 'client'}_${eventDate}`,
+      summaryRows: [
+        { label: 'Event Name', value: event.eventName },
+        { label: 'Date', value: eventDate },
+        { label: 'Guest Capacity', value: `${event.capacity} people` },
+      ],
+      sections: [
+        {
+          title: 'Client Information',
+          rows: [
+            { label: 'Client Name', value: event.clientName },
+            { label: 'Contact', value: event.clientContact },
+            ...(event.clientFacebook ? [{ label: 'Facebook', value: event.clientFacebook }] : []),
+          ],
+        },
+        {
+          title: 'Payment Summary',
+          rows: [
+            { label: 'Deposit Amount', value: formatReceiptAmount(event.depositAmount) },
+            { label: 'Total Amount', value: formatReceiptAmount(event.totalAmount) },
+            { label: 'Remaining Balance', value: formatReceiptAmount(remainingBalance) },
+          ],
+        },
+        ...(event.extras && event.extras.length > 0
+          ? [{ title: 'Extras', rows: [{ label: 'Items', value: event.extras.join(', ') }] }]
+          : []),
+      ],
+    })
   }
 
   return (
@@ -217,12 +150,22 @@ ${event.extras && event.extras.length > 0 ? `
                   {/* Event Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                     <div>
+                      {facilityName && (
+                        <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0, marginBottom: '0.25rem' }}>
+                          Venue: {facilityName}
+                        </p>
+                      )}
                       <h3 style={{ fontSize: '1.0625rem', fontWeight: '700', color: '#1f2937', margin: 0, marginBottom: '0.25rem' }}>
                         {event.eventName}
                       </h3>
                       <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{event.clientName}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
+                          <span style={{ textTransform: 'capitalize', fontSize: '0.8125rem', padding: '0.25rem 0.5rem', borderRadius: '6px', background: event.status === 'cancelled' ? '#fee2e2' : event.status === 'confirmed' ? '#ecfdf5' : event.status === 'pending' ? '#fffbeb' : '#eef2ff', color: event.status === 'cancelled' ? '#991b1b' : event.status === 'confirmed' ? '#15803d' : '#92400e' }}>
+                            {event.status || 'pending'}
+                          </span>
+                        </div>
                       <button
                         onClick={() => {
                           onEdit(event)

@@ -35,7 +35,7 @@ export function PoolModal({
       size: '',
       depth: '',
       capacity: '',
-      status: 'operational',
+      status: 'open',
       temperature: '',
     }
   )
@@ -69,7 +69,7 @@ export function PoolModal({
     e.preventDefault()
     if (!validateForm()) return
     onSubmit(formData)
-    setFormData({ name: '', size: '', depth: '', capacity: '', status: 'operational', temperature: '' })
+    setFormData({ name: '', size: '', depth: '', capacity: '', status: 'open', temperature: '' })
   }
 
   if (!isOpen) return null
@@ -156,7 +156,7 @@ export function PoolModal({
               value={formData.status}
               onChange={handleChange}
               options={[
-                { value: 'operational', label: 'Operational' },
+                { value: 'open', label: 'Open' },
                 { value: 'maintenance', label: 'Maintenance' },
                 { value: 'closed', label: 'Closed' },
               ]}

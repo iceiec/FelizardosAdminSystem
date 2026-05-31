@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Event } from '../services/mockData'
 
@@ -13,7 +13,6 @@ interface EventModalProps {
 
 // Placeholder lists - user will update these later
 const EVENT_NAMES = ['Birthday Party', 'Wedding', 'Corporate Event', 'Seminar', 'Concert', 'Sports Event']
-
 const EXTRAS = ['Catering', 'Sound System', 'Lighting', 'Chairs', 'Tables', 'Tent', 'Decorations']
 
 export default function EventModal({
@@ -26,6 +25,7 @@ export default function EventModal({
 }: EventModalProps) {
   const [formData, setFormData] = useState({
     eventName: '',
+    otherEventName: '',
     clientName: '',
     clientContact: '',
     clientFacebook: '',
@@ -34,12 +34,46 @@ export default function EventModal({
     depositAmount: '',
     totalAmount: '',
     extras: [] as string[],
+    status: 'pending',
   })
+
+  const [addons, setAddons] = useState<{ name: string; price: number }[]>([])
+  const [autoCalculate, setAutoCalculate] = useState(true)
+  const basePriceRef = useRef<number>(0)
+
+  useEffect(() => {
+    // load addons and facilities/default pricing from localStorage
+    try {
+      const raw = localStorage.getItem('addons')
+      if (raw) setAddons(JSON.parse(raw))
+    } catch (e) {}
+
+    try {
+      const rawFacilities = localStorage.getItem('facilities')
+      if (rawFacilities) {
+        const facilities: any[] = JSON.parse(rawFacilities)
+        const found = facilities.find((f) => f.id === facilityId)
+        if (found) {
+          basePriceRef.current = Number(found.defaultPrice || 0)
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const rawPricing = localStorage.getItem('defaultPricing')
+      if (rawPricing && !basePriceRef.current) {
+        const pricing = JSON.parse(rawPricing)
+        // fallback to pavilion default as generic
+        basePriceRef.current = Number(pricing.pavilion || 0)
+      }
+    } catch (e) {}
+  }, [facilityId])
 
   useEffect(() => {
     if (initialEvent) {
       setFormData({
-        eventName: initialEvent.eventName,
+        eventName: EVENT_NAMES.includes(initialEvent.eventName) ? initialEvent.eventName : 'other',
+        otherEventName: EVENT_NAMES.includes(initialEvent.eventName) ? '' : initialEvent.eventName,
         clientName: initialEvent.clientName,
         clientContact: initialEvent.clientContact,
         clientFacebook: initialEvent.clientFacebook,
@@ -48,10 +82,13 @@ export default function EventModal({
         depositAmount: initialEvent.depositAmount.toString(),
         totalAmount: initialEvent.totalAmount.toString(),
         extras: initialEvent.extras,
+        status: initialEvent.status || 'pending',
       })
+      setAutoCalculate(false)
     } else {
       setFormData({
         eventName: '',
+        otherEventName: '',
         clientName: '',
         clientContact: '',
         clientFacebook: '',
@@ -60,20 +97,37 @@ export default function EventModal({
         depositAmount: '',
         totalAmount: '',
         extras: [],
+        status: 'pending',
       })
+      // if new event, prefill totalAmount from base price
+      setFormData((prev) => ({ ...prev, totalAmount: String(basePriceRef.current || '') }))
+      setAutoCalculate(true)
     }
   }, [initialEvent, selectedDate, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    if (name === 'totalAmount') setAutoCalculate(false)
+    // clear otherEventName when selecting a built-in event
+    if (name === 'eventName' && value !== 'other') {
+      setFormData((prev) => ({ ...prev, otherEventName: '' }))
+    }
   }
 
   const handleExtrasChange = (extra: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      extras: prev.extras.includes(extra) ? prev.extras.filter((e) => e !== extra) : [...prev.extras, extra],
-    }))
+    setFormData((prev) => {
+      const nextExtras = prev.extras.includes(extra) ? prev.extras.filter((e) => e !== extra) : [...prev.extras, extra]
+      // auto-calc total if enabled
+      if (autoCalculate) {
+        const extrasSum = nextExtras.reduce((sum, name) => {
+          const a = addons.find((x) => x.name === name)
+          return sum + (a ? Number(a.price) : 0)
+        }, 0)
+        return { ...prev, extras: nextExtras, totalAmount: String((basePriceRef.current || 0) + extrasSum) }
+      }
+      return { ...prev, extras: nextExtras }
+    })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -95,6 +149,7 @@ export default function EventModal({
       depositAmount: parseFloat(formData.depositAmount) || 0,
       totalAmount: parseFloat(formData.totalAmount) || 0,
       extras: formData.extras,
+      status: formData.status,
     })
   }
 
@@ -122,7 +177,23 @@ export default function EventModal({
                   {name}
                 </option>
               ))}
+              <option value="other">Other (specify)</option>
             </select>
+
+            {formData.eventName === 'other' && (
+              <div className="form-group" style={{ width: '95%', marginTop: 8 }}>
+                <label className="form-label">Specify Event Type <span className="required">*</span></label>
+                <input
+                  type="text"
+                  name="otherEventName"
+                  value={formData.otherEventName}
+                  onChange={handleChange}
+                  placeholder="Describe the event (e.g., Family Reunion)"
+                  className="form-input"
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-group"  style={{ width: '95%' }}>
@@ -233,21 +304,34 @@ export default function EventModal({
           <div className="form-group">
             <label className="form-label">Extras</label>
             <div className="space-y-2">
-              {EXTRAS.map((extra) => (
-                <div key={extra} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`extra-${extra}`}
-                    checked={formData.extras.includes(extra)}
-                    onChange={() => handleExtrasChange(extra)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`extra-${extra}`} className="text-sm cursor-pointer">
-                    {extra}
-                  </label>
-                </div>
-              ))}
+              {(addons.length ? addons.map((a) => a.name) : EXTRAS).map((extra) => {
+                const price = addons.find((x) => x.name === extra)?.price
+                return (
+                  <div key={extra} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`extra-${extra}`}
+                      checked={formData.extras.includes(extra)}
+                      onChange={() => handleExtrasChange(extra)}
+                      className="mr-2"
+                    />
+                    <label htmlFor={`extra-${extra}`} className="text-sm cursor-pointer">
+                      {extra}{price ? ` • ₱${Number(price).toLocaleString()}` : ''}
+                    </label>
+                  </div>
+                )
+              })}
             </div>
+          </div>
+
+          <div className="form-group" style={{ width: '95%' }}>
+            <label className="form-label">Status</label>
+            <select name="status" value={formData.status} onChange={handleChange} className="form-input">
+              <option value="pending">pending</option>
+              <option value="confirmed">confirmed</option>
+              <option value="completed">completed</option>
+              <option value="cancelled">cancelled</option>
+            </select>
           </div>
 
           <div className="modal-footer">
