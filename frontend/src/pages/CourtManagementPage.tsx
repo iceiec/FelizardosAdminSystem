@@ -30,6 +30,7 @@ export default function CourtManagementPage() {
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null)
   const [editingCourtId, setEditingCourtId] = useState<string | null>(null)
   const [selectedCourtId, setSelectedCourtId] = useState<string>('')
+  const [scheduleInitialCourtId, setScheduleInitialCourtId] = useState<string>('')
   const [selectedDate, setSelectedDate] = useState('')
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
@@ -320,7 +321,7 @@ export default function CourtManagementPage() {
 
                   {/* Add Schedule Button */}
                   <button
-                    onClick={handleAddSchedule}
+                    onClick={() => { setSelectedDate(''); setEditingScheduleId(null); setIsScheduleModalOpen(true); setScheduleInitialCourtId(court.id) }}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -509,6 +510,7 @@ export default function CourtManagementPage() {
             ? schedules.find((s) => s.id === editingScheduleId)
             : undefined
         }
+        initialCourtId={scheduleInitialCourtId}
       />
 
       {/* Schedule Details Modal */}

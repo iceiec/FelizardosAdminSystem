@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { X, Phone, DollarSign, Printer, Clock } from 'lucide-react'
 import type { Schedule } from '../services/mockData'
 import { downloadReceiptPdf, formatReceiptAmount, formatReceiptDate } from '@/lib/receiptPdf'
@@ -67,7 +68,7 @@ export default function ScheduleDetailsModal({
     })
   }
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -76,7 +77,7 @@ export default function ScheduleDetailsModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 50,
+        zIndex: 9999,
       }}
       onClick={onClose}
     >
@@ -273,6 +274,7 @@ export default function ScheduleDetailsModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

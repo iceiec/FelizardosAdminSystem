@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import type { Event } from '../services/mockData'
 
@@ -138,9 +139,11 @@ export default function EventModal({
       return
     }
 
+    const finalName = formData.eventName === 'other' ? formData.otherEventName || 'Other' : formData.eventName
+
     onSave({
       facilityId,
-      eventName: formData.eventName,
+      eventName: finalName,
       clientName: formData.clientName,
       clientContact: formData.clientContact,
       clientFacebook: formData.clientFacebook,
@@ -155,8 +158,8 @@ export default function EventModal({
 
   if (!isOpen) return null
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
+  return createPortal(
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{initialEvent ? 'Edit Event' : 'Add Event'}</h2>
@@ -344,6 +347,7 @@ export default function EventModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

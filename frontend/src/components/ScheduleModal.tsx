@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Schedule } from '../services/mockData'
 
@@ -8,6 +8,7 @@ interface ScheduleModalProps {
   onSave: (data: ScheduleFormData) => void
   courts: Array<{ id: string; name: string }>
   initialSchedule?: Schedule
+  initialCourtId?: string
 }
 
 export interface ScheduleFormData {
@@ -54,7 +55,7 @@ export default function ScheduleModal({
           status: (initialSchedule as any).status || 'pending',
         }
       : {
-          courtId: courts[0]?.id || '',
+          courtId: initialCourtId || courts[0]?.id || '',
           date: '',
           timeSlot: '',
           clientName: '',
@@ -64,6 +65,55 @@ export default function ScheduleModal({
           status: 'pending',
         },
   )
+
+  const basePriceRef = useRef<number>(0)
+
+  // Load facility default price or fallback pricing from localStorage
+  useEffect(() => {
+    const loadBasePrice = () => {
+      try {
+        const rawFacilities = localStorage.getItem('facilities')
+        if (rawFacilities) {
+          const facilities = JSON.parse(rawFacilities) as any[]
+          const found = facilities.find((f) => f.id === formData.courtId)
+          if (found) {
+            basePriceRef.current = Number(found.defaultPrice || 0)
+            return
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const rawPricing = localStorage.getItem('defaultPricing')
+        if (rawPricing) {
+          const pricing = JSON.parse(rawPricing) as any
+          // try generic court key
+          if (pricing.court) {
+            basePriceRef.current = Number(pricing.court || 0)
+            return
+          }
+          // try name-specific fallbacks used in settings (e.g., juletCourt, andoyCourt)
+          const court = courts.find((c) => c.id === formData.courtId)
+          const name = (court?.name || '').toLowerCase()
+          if (name.includes('juliet') && pricing.juletCourt) {
+            basePriceRef.current = Number(pricing.juletCourt || 0)
+            return
+          }
+          if (name.includes('andoy') && pricing.andoyCourt) {
+            basePriceRef.current = Number(pricing.andoyCourt || 0)
+            return
+          }
+        }
+      } catch (e) {}
+    }
+
+    loadBasePrice()
+    // if creating a new schedule (no initialSchedule), prefill the totalAmount
+    if (!initialSchedule) {
+      setFormData((prev) => ({ ...prev, totalAmount: basePriceRef.current || prev.totalAmount }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.courtId, courts, initialSchedule, isOpen])
 
   const [customTime, setCustomTime] = useState('')
 

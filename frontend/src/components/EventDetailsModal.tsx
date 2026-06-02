@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { X, Phone, Facebook, Users, DollarSign, Printer } from 'lucide-react'
 import type { Event } from '../services/mockData'
 import { downloadReceiptPdf, formatReceiptAmount, formatReceiptDate } from '@/lib/receiptPdf'
@@ -22,6 +23,7 @@ export default function EventDetailsModal({
   events,
   selectedDate,
   receiptPrefix,
+  facilityName,
 }: EventDetailsModalProps) {
   if (!isOpen) return null
 
@@ -63,7 +65,7 @@ export default function EventDetailsModal({
     })
   }
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -72,7 +74,7 @@ export default function EventDetailsModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 50,
+        zIndex: 9999,
       }}
       onClick={onClose}
     >
@@ -308,6 +310,7 @@ export default function EventDetailsModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
