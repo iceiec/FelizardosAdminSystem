@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Users, MapPin, Calendar } from 'lucide-react'
-import { mockEventsData, type Event } from '@/services/mockData'
+import type { Event } from '@/services/mockData'
 import { pavilionAPI, pavilionBookingAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { PavilionModal, type PavilionFormData } from '@/components/PavilionModal'
@@ -17,6 +17,27 @@ interface Pavilion {
   events: number
   lastEvent: string
 }
+
+const mapBookingToEvent = (booking: any): Event => ({
+  id: booking.id,
+  facilityId: booking.pavilionId || booking.pavilion_id || '',
+  facilityName: booking.pavilionName || booking.pavilion_name || booking.facilityName || '',
+  eventName: booking.eventName || booking.event_name || '',
+  clientName: booking.clientName || booking.client_name || '',
+  clientContact: booking.clientContact || booking.client_contact || '',
+  clientFacebook: booking.clientFacebook || booking.client_facebook || '',
+  // Normalize to YYYY-MM-DD so CalendarView matches dates
+  date: (() => {
+    const d = booking.eventDate || booking.event_date || booking.date || ''
+    return d ? String(d).slice(0, 10) : ''
+  })(),
+  capacity: Number(booking.capacity || 0),
+  depositAmount: Number(booking.depositAmount || booking.deposit_amount || 0),
+  totalAmount: Number(booking.totalAmount || booking.total_amount || 0),
+  extras: Array.isArray(booking.extras) ? booking.extras : [],
+  status: booking.status || booking.status || 'pending',
+  createdAt: booking.createdAt || booking.created_at || '',
+})
 
 export default function PavilionManagementPage() {
   const [pavilion, setPavilion] = useState<Pavilion | null>(null)
@@ -43,9 +64,19 @@ export default function PavilionManagementPage() {
         const pavilions = await pavilionAPI.getAll()
         const pavilionData = pavilions?.[0]
         if (pavilionData) {
+          // apply overrides from settings if present
+          let nameOverride = pavilionData.name
+          try {
+            const raw = localStorage.getItem('facilities')
+            if (raw) {
+              const facs = JSON.parse(raw) as any[]
+              const found = facs.find((f) => f.id === pavilionData.id)
+              if (found && found.name) nameOverride = found.name
+            }
+          } catch (e) {}
           setPavilion({
             id: pavilionData.id,
-            name: pavilionData.name,
+            name: nameOverride,
             capacity: Number(pavilionData.capacity) || 0,
             location: pavilionData.location || '',
             status: pavilionData.status || 'active',
@@ -53,7 +84,6 @@ export default function PavilionManagementPage() {
             lastEvent: pavilionData.lastEvent || '',
           })
         }
-        setAllEvents(mockEventsData)
       } catch (error) {
         toast.error('Failed to load pavilion data')
       } finally {
@@ -61,6 +91,19 @@ export default function PavilionManagementPage() {
       }
     }
     loadData()
+    const onSettings = () => {
+      // reload pavilion name override
+      try {
+        const raw = localStorage.getItem('facilities')
+        if (raw && pavilion) {
+          const facs = JSON.parse(raw) as any[]
+          const found = facs.find((f) => f.id === pavilion.id)
+          if (found && found.name) setPavilion((p) => p ? { ...p, name: found.name } : p)
+        }
+      } catch (e) {}
+    }
+    window.addEventListener('settings:updated', onSettings)
+    return () => window.removeEventListener('settings:updated', onSettings)
   }, [])
 
   // Bookings state and loader (must be declared before any early returns)
@@ -72,8 +115,10 @@ export default function PavilionManagementPage() {
       try {
         const rows = await pavilionBookingAPI.getByPavilion(pavilion.id)
         setBookings(rows)
+        setAllEvents(rows.length ? rows.map((r: any) => ({ ...mapBookingToEvent(r), facilityName: pavilion.name })) : [])
       } catch (err) {
         console.warn('Failed to load bookings', err)
+        setAllEvents([])
       }
     }
     loadBookings()
@@ -92,59 +137,73 @@ export default function PavilionManagementPage() {
     setIsDetailsModalOpen(true)
   }
 
-  const handleSaveEvent = (eventData: Omit<Event, 'id' | 'createdAt'>) => {
-    if (editingEvent) {
-      setAllEvents(
-        allEvents.map((e) =>
-          e.id === editingEvent.id ? { ...e, ...eventData } : e,
-        ),
-      )
-      toast.success('Event updated successfully')
-    } else {
-      const newEvent: any = {
-        id: `evt-${Date.now()}`,
-        ...eventData,
-        createdAt: new Date().toISOString().split('T')[0],
-      }
-      // Try to create a booking via API, fall back to local state on failure
-      const doCreate = async () => {
-        try {
-          if (!pavilion) {
-            setAllEvents([...allEvents, newEvent])
-            toast.success('Event created (offline)')
-            return
-          }
-          const payload = {
-            pavilionId: pavilion.id,
-            eventName: newEvent.eventName,
-            date: newEvent.date,
-            clientName: newEvent.clientName,
-            clientContact: newEvent.clientContact,
-            clientFacebook: (newEvent as any).clientFacebook || null,
-            capacity: newEvent.capacity,
-            depositAmount: newEvent.depositAmount,
-            totalAmount: newEvent.totalAmount,
-            extras: newEvent.extras,
-          }
-          const created = await pavilionBookingAPI.create(payload)
-          // reflect created booking as an event in the UI
-          setAllEvents([...allEvents, { ...newEvent, id: created.id }])
-          toast.success('Booking created successfully')
-        } catch (err) {
-          // fallback to local mock behavior
-          setAllEvents([...allEvents, newEvent])
-          toast.success('Event created (offline)')
+  const handleSaveEvent = async (eventData: Omit<Event, 'id' | 'createdAt'>) => {
+    const payload = {
+      pavilionId: pavilion?.id || eventData.facilityId,
+      eventName: eventData.eventName,
+      date: eventData.date,
+      clientName: eventData.clientName,
+      clientContact: eventData.clientContact,
+      clientFacebook: eventData.clientFacebook || null,
+      capacity: eventData.capacity,
+      depositAmount: eventData.depositAmount,
+      totalAmount: eventData.totalAmount,
+      extras: eventData.extras,
+      status: (eventData as any).status || 'pending',
+    }
+
+    try {
+      if (editingEvent) {
+        const updated = await pavilionBookingAPI.update(editingEvent.id, payload)
+        const mapped = mapBookingToEvent(updated)
+        setBookings((current) => current.map((b) => (b.id === editingEvent.id ? updated : b)))
+        setAllEvents((current) => current.map((e) => (e.id === editingEvent.id ? mapped : e)))
+        toast.success('Booking updated successfully')
+      } else if (pavilion) {
+        const created = await pavilionBookingAPI.create(payload)
+        const mapped = mapBookingToEvent(created)
+        setBookings((current) => [...current, created])
+        setAllEvents((current) => [...current, mapped])
+        toast.success('Booking created successfully')
+      } else {
+        const newEvent: Event = {
+          id: `evt-${Date.now()}`,
+          ...eventData,
+          createdAt: new Date().toISOString().split('T')[0],
         }
+        setAllEvents((current) => [...current, newEvent])
+        toast.success('Event created (offline)')
       }
-      doCreate()
+    } catch (err) {
+      if (editingEvent) {
+        setAllEvents((current) =>
+          current.map((e) => (e.id === editingEvent.id ? { ...e, ...eventData } : e)),
+        )
+        toast.success('Event updated locally')
+      } else {
+        const newEvent: Event = {
+          id: `evt-${Date.now()}`,
+          ...eventData,
+          createdAt: new Date().toISOString().split('T')[0],
+        }
+        setAllEvents((current) => [...current, newEvent])
+        toast.success('Event created locally')
+      }
     }
     setIsEventModalOpen(false)
     setEditingEvent(null)
   }
 
-  const handleDeleteEvent = (eventId: string) => {
-    setAllEvents(allEvents.filter((e) => e.id !== eventId))
-    toast.success('Event deleted successfully')
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      await pavilionBookingAPI.delete(eventId)
+      setBookings((current) => current.filter((booking) => booking.id !== eventId))
+      setAllEvents((current) => current.filter((event) => event.id !== eventId))
+      toast.success('Booking deleted successfully')
+    } catch (error) {
+      setAllEvents((current) => current.filter((event) => event.id !== eventId))
+      toast.success('Event deleted locally')
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -192,7 +251,8 @@ export default function PavilionManagementPage() {
   const handleUpdateBookingStatus = async (id: string, status: string) => {
     try {
       const updated = await pavilionBookingAPI.updateStatus(id, status)
-      setBookings(bookings.map((b) => (b.id === id ? updated : b)))
+      setBookings((current) => current.map((b) => (b.id === id ? updated : b)))
+      setAllEvents((current) => current.map((e) => (e.id === id ? mapBookingToEvent(updated) : e)))
       toast.success('Booking status updated')
     } catch (err) {
       toast.error('Failed to update status')
@@ -202,7 +262,8 @@ export default function PavilionManagementPage() {
   const handleDeleteBooking = async (id: string) => {
     try {
       await pavilionBookingAPI.delete(id)
-      setBookings(bookings.filter((b) => b.id !== id))
+      setBookings((current) => current.filter((b) => b.id !== id))
+      setAllEvents((current) => current.filter((event) => event.id !== id))
       toast.success('Booking deleted')
     } catch (err) {
       toast.error('Failed to delete booking')
@@ -228,7 +289,7 @@ export default function PavilionManagementPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: isMobile ? '1.5rem' : '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: isMobile ? '1.5rem' : '2rem' }}>
         {/* Facility Details and Events List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Pavilion Card */}
@@ -345,7 +406,7 @@ export default function PavilionManagementPage() {
                       </p>
                     </div>
                     <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
-                      ₦{Number(event.totalAmount || 0).toLocaleString()}
+                      ₱{Number(event.totalAmount || 0).toLocaleString()}
                     </span>
                   </div>
                 ))}
@@ -365,35 +426,6 @@ export default function PavilionManagementPage() {
             }}
             onAddEvent={handleAddEvent}
           />
-        </div>
-        {/* Bookings List (right column) */}
-        <div>
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1rem' }}>
-            <h3 style={{ margin: 0, marginBottom: '0.75rem' }}>Bookings</h3>
-            {bookings.length === 0 ? (
-              <p style={{ color: '#9ca3af' }}>No bookings yet</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {bookings.map((b) => (
-                  <div key={b.id} style={{ padding: '0.5rem', border: '1px solid #eef2f7', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{b.event_name || b.eventName}</div>
-                      <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>{b.client_name || b.clientName} • {formatDate(b.event_date || b.date)}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <select value={b.status} onChange={(e) => handleUpdateBookingStatus(b.id, e.target.value)} style={{ padding: '0.25rem' }}>
-                        <option value="pending">pending</option>
-                        <option value="confirmed">confirmed</option>
-                        <option value="completed">completed</option>
-                        <option value="cancelled">cancelled</option>
-                      </select>
-                      <button onClick={() => handleDeleteBooking(b.id)} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }}>Delete</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -421,6 +453,8 @@ export default function PavilionManagementPage() {
         onDelete={handleDeleteEvent}
         events={pavilionEvents}
         selectedDate={selectedDate}
+        facilityName={pavilion?.name || "Felizardos Event's Place"}
+        receiptPrefix="Pavilion"
       />
 
       {/* Pavilion Modal */}

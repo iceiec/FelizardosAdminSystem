@@ -113,6 +113,7 @@ As you build, ask me:
 - **Start with backend first** - Build and test APIs with Postman before building frontend
 - **Use environment variables** - Never commit sensitive data
 - **Make meaningful commits** - Build good Git history for the portfolio
+- **Follow commit conventions** - See [COMMIT_GUIDE.md](COMMIT_GUIDE.md)
 - **Document as you go** - Comment complex logic
 - **Test thoroughly** - Before considering anything "done"
 

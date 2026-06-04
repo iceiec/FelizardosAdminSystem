@@ -47,6 +47,53 @@ export default function SettingsPage() {
   const [newFacilityType, setNewFacilityType] = useState<'pavilion' | 'pool' | 'court'>('pavilion')
   const [newFacilityPrice, setNewFacilityPrice] = useState('')
 
+  // Sync facilities prices to default pricing configuration
+  const syncFacilitiesToDefaultPricing = (facilityList: Facility[]) => {
+    // Start with current pricing values
+    const newPricing: DefaultPricing = {
+      pavilion: defaultPricing.pavilion,
+      pool: defaultPricing.pool,
+      juletCourt: defaultPricing.juletCourt,
+      andoyCourt: defaultPricing.andoyCourt,
+    }
+    
+    // Find pavilion facility and update default pricing
+    const pavilionFacility = facilityList.find(f => f.type === 'pavilion')
+    if (pavilionFacility) {
+      newPricing.pavilion = pavilionFacility.defaultPrice
+    }
+    
+    // Find pool facility and update default pricing
+    const poolFacility = facilityList.find(f => f.type === 'pool')
+    if (poolFacility) {
+      newPricing.pool = poolFacility.defaultPrice
+    }
+    
+    // Find court facilities and map by name - check each facility individually
+    const courts = facilityList.filter(f => f.type === 'court')
+    
+    // First, try to find courts by name matching
+    const julietCourt = courts.find(c => {
+      const lowerName = c.name.toLowerCase()
+      return lowerName.includes('juliet') || lowerName.includes('julet')
+    })
+    
+    const andoyCourt = courts.find(c => {
+      const lowerName = c.name.toLowerCase()
+      return lowerName.includes('andoy')
+    })
+    
+    // Update pricing if courts are found
+    if (julietCourt) {
+      newPricing.juletCourt = julietCourt.defaultPrice
+    }
+    if (andoyCourt) {
+      newPricing.andoyCourt = andoyCourt.defaultPrice
+    }
+    
+    setDefaultPricing(newPricing)
+  }
+
   const handleAddFacility = () => {
     if (newFacilityName && newFacilityPrice) {
       const newFacility: Facility = {
@@ -55,10 +102,110 @@ export default function SettingsPage() {
         type: newFacilityType,
         defaultPrice: parseInt(newFacilityPrice),
       }
-      setFacilities([...facilities, newFacility])
+      const updatedFacilities = [...facilities, newFacility]
+      setFacilities(updatedFacilities)
+      syncFacilitiesToDefaultPricing(updatedFacilities)
       setNewFacilityName('')
       setNewFacilityPrice('')
       setIsAddModalOpen(false)
+    }
+  }
+
+  // Load settings from localStorage on mount and sync facilities to pricing
+  useEffect(() => {
+    let loadedPricing: DefaultPricing | null = null
+    let loadedFacilities: Facility[] | null = null
+
+    try {
+      const rawPricing = localStorage.getItem('defaultPricing')
+      if (rawPricing) loadedPricing = JSON.parse(rawPricing)
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      const rawFacilities = localStorage.getItem('facilities')
+      if (rawFacilities) loadedFacilities = JSON.parse(rawFacilities)
+    } catch (e) {
+      // ignore
+    }
+
+    // If we have facilities in storage, use them and sync pricing from facilities
+    if (loadedFacilities) {
+      setFacilities(loadedFacilities)
+      // Sync pricing based on loaded facilities
+      const newPricing: DefaultPricing = {
+        pavilion: defaultPricing.pavilion,
+        pool: defaultPricing.pool,
+        juletCourt: defaultPricing.juletCourt,
+        andoyCourt: defaultPricing.andoyCourt,
+      }
+      
+      const pavilionFacility = loadedFacilities.find(f => f.type === 'pavilion')
+      if (pavilionFacility) {
+        newPricing.pavilion = pavilionFacility.defaultPrice
+      }
+      
+      const poolFacility = loadedFacilities.find(f => f.type === 'pool')
+      if (poolFacility) {
+        newPricing.pool = poolFacility.defaultPrice
+      }
+      
+      // Find court facilities and map by name - check each facility individually
+      const courts = loadedFacilities.filter(f => f.type === 'court')
+      
+      const julietCourt = courts.find(c => {
+        const lowerName = c.name.toLowerCase()
+        return lowerName.includes('juliet') || lowerName.includes('julet')
+      })
+      
+      const andoyCourt = courts.find(c => {
+        const lowerName = c.name.toLowerCase()
+        return lowerName.includes('andoy')
+      })
+      
+      if (julietCourt) {
+        newPricing.juletCourt = julietCourt.defaultPrice
+      }
+      if (andoyCourt) {
+        newPricing.andoyCourt = andoyCourt.defaultPrice
+      }
+      
+      setDefaultPricing(newPricing)
+    } else if (loadedPricing) {
+      // Only use stored pricing if no facilities are stored
+      setDefaultPricing(loadedPricing)
+    }
+  }, [])
+
+  const [addons, setAddons] = useState<Array<{ name: string; price: number }>>([])
+  const [newAddonName, setNewAddonName] = useState('')
+  const [newAddonPrice, setNewAddonPrice] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('addons')
+      if (raw) setAddons(JSON.parse(raw))
+    } catch (e) {}
+  }, [])
+
+  const handleAddAddon = () => {
+    if (!newAddonName) return
+    const a = { name: newAddonName, price: parseFloat(newAddonPrice) || 0 }
+    setAddons((cur) => [...cur, a])
+    setNewAddonName('')
+    setNewAddonPrice('')
+  }
+
+  const handleDeleteAddon = (name: string) => setAddons((cur) => cur.filter((a) => a.name !== name))
+
+  const handleSaveAddons = () => {
+    try {
+      localStorage.setItem('addons', JSON.stringify(addons))
+      window.dispatchEvent(new Event('settings:updated'))
+      alert('Add-ons saved')
+    } catch (e) {
+      alert('Failed to save add-ons')
     }
   }
 
@@ -72,18 +219,18 @@ export default function SettingsPage() {
 
   const handleSaveEditFacility = () => {
     if (editingFacility && newFacilityName && newFacilityPrice) {
-      setFacilities(
-        facilities.map((f) =>
-          f.id === editingFacility.id
-            ? {
-                ...f,
-                name: newFacilityName,
-                type: newFacilityType,
-                defaultPrice: parseInt(newFacilityPrice),
-              }
-            : f,
-        ),
+      const updatedFacilities = facilities.map((f) =>
+        f.id === editingFacility.id
+          ? {
+              ...f,
+              name: newFacilityName,
+              type: newFacilityType,
+              defaultPrice: parseInt(newFacilityPrice),
+            }
+          : f,
       )
+      setFacilities(updatedFacilities)
+      syncFacilitiesToDefaultPricing(updatedFacilities)
       setIsEditModalOpen(false)
       setEditingFacility(null)
       setNewFacilityName('')
@@ -93,12 +240,35 @@ export default function SettingsPage() {
 
   const handleDeleteFacility = (id: string) => {
     if (confirm('Are you sure you want to delete this facility?')) {
-      setFacilities(facilities.filter((f) => f.id !== id))
+      const updatedFacilities = facilities.filter((f) => f.id !== id)
+      setFacilities(updatedFacilities)
+      syncFacilitiesToDefaultPricing(updatedFacilities)
     }
   }
 
   const handleUpdatePricing = (key: keyof DefaultPricing, value: number) => {
     setDefaultPricing({ ...defaultPricing, [key]: value })
+  }
+
+  const handleSaveFacilities = () => {
+    try {
+      localStorage.setItem('facilities', JSON.stringify(facilities))
+      window.dispatchEvent(new Event('settings:updated'))
+      alert('Facilities saved')
+    } catch (e) {
+      alert('Failed to save facilities')
+    }
+  }
+
+  // dispatch settings updated when saving pricing too
+  const handleSavePricing = () => {
+    try {
+      localStorage.setItem('defaultPricing', JSON.stringify(defaultPricing))
+      window.dispatchEvent(new Event('settings:updated'))
+      alert('Default pricing settings saved successfully!')
+    } catch (e) {
+      alert('Failed to save pricing')
+    }
   }
 
   const getFacilityTypeLabel = (type: string) => {
@@ -369,10 +539,7 @@ export default function SettingsPage() {
         {/* Save Button */}
         <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
           <button
-            onClick={() => {
-              localStorage.setItem('defaultPricing', JSON.stringify(defaultPricing))
-              alert('Default pricing settings saved successfully!')
-            }}
+            onClick={handleSavePricing}
             style={{
               padding: '0.75rem 1.5rem',
               background: '#22c55e',
@@ -388,6 +555,44 @@ export default function SettingsPage() {
             onMouseLeave={(e) => (e.currentTarget.style.background = '#22c55e')}
           >
             Save Pricing Settings
+          </button>
+          <button
+            onClick={handleSaveFacilities}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '0.9375rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#2563eb')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#3b82f6')}
+          >
+            Save Facilities
+          </button>
+          <button
+            onClick={handleSaveAddons}
+            style={{
+              marginLeft: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: '#8b5cf6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '0.9375rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#7c3aed')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#8b5cf6')}
+          >
+            Save Add-ons
           </button>
         </div>
       </div>
@@ -707,6 +912,24 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      {/* Add-ons Management */}
+      <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0 }}>Add-ons</h2>
+        <p style={{ color: '#6b7280' }}>Define add-on services (extras) and their default prices.</p>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', marginBottom: '1rem' }}>
+          <input placeholder="Add-on name" value={newAddonName} onChange={(e) => setNewAddonName(e.target.value)} style={{ padding: '0.5rem', flex: 1 }} />
+          <input placeholder="Price" type="number" value={newAddonPrice} onChange={(e) => setNewAddonPrice(e.target.value)} style={{ padding: '0.5rem', width: '140px' }} />
+          <button onClick={handleAddAddon} className="btn btn-primary">Add</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {addons.length === 0 ? <p style={{ color: '#9ca3af' }}>No add-ons defined.</p> : addons.map((a) => (
+            <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', background: '#f9fafb' }}>
+              <div>{a.name} • ₱{a.price.toLocaleString()}</div>
+              <button onClick={() => handleDeleteAddon(a.name)} className="btn btn-danger">Delete</button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

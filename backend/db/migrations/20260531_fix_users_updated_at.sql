@@ -1,0 +1,11 @@
+-- Fix older users tables that were created without updated_at
+
+BEGIN;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'admin',
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+COMMIT;

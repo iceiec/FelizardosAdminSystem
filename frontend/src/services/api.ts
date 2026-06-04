@@ -199,6 +199,14 @@ export const maintenanceAPI = {
 
 // Pavilion booking APIs
 export const pavilionBookingAPI = {
+  getByPavilion: async (pavilionId: string) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings?pavilionId=${encodeURIComponent(pavilionId)}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch bookings')
+    return response.json()
+  },
+
   create: async (data: any) => {
     const response = await fetch(`${API_BASE_URL}/pavilion/bookings`, {
       method: 'POST',
@@ -212,11 +220,13 @@ export const pavilionBookingAPI = {
     return response.json()
   },
 
-  getByPavilion: async (pavilionId: string) => {
-    const response = await fetch(`${API_BASE_URL}/pavilion/bookings?pavilionId=${encodeURIComponent(pavilionId)}`, {
+  update: async (id: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/pavilion/bookings/${id}`, {
+      method: 'PUT',
       headers: getAuthHeaders(),
+      body: JSON.stringify(data),
     })
-    if (!response.ok) throw new Error('Failed to fetch bookings')
+    if (!response.ok) throw new Error('Failed to update booking')
     return response.json()
   },
 
@@ -236,6 +246,94 @@ export const pavilionBookingAPI = {
       headers: getAuthHeaders(),
     })
     if (!response.ok) throw new Error('Failed to delete booking')
+    return response.json()
+  },
+}
+
+export const poolBookingAPI = {
+  getByPool: async (poolId: string) => {
+    const response = await fetch(`${API_BASE_URL}/pool/bookings?poolId=${encodeURIComponent(poolId)}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch pool bookings')
+    return response.json()
+  },
+
+  create: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/pool/bookings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error('Failed to create pool booking')
+    return response.json()
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/pool/bookings/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error('Failed to update pool booking')
+    return response.json()
+  },
+
+  updateStatus: async (id: string, status: string) => {
+    const response = await fetch(`${API_BASE_URL}/pool/bookings/${id}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) throw new Error('Failed to update pool booking status')
+    return response.json()
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/pool/bookings/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to delete pool booking')
+    return response.json()
+  },
+}
+
+export const courtScheduleAPI = {
+  getByCourt: async (courtId: string) => {
+    const response = await fetch(`${API_BASE_URL}/court/schedules?courtId=${encodeURIComponent(courtId)}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to fetch court schedules')
+    return response.json()
+  },
+
+  create: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/court/schedules`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error('Failed to create court schedule')
+    return response.json()
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/court/schedules/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error('Failed to update court schedule')
+    return response.json()
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/court/schedules/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) throw new Error('Failed to delete court schedule')
     return response.json()
   },
 }

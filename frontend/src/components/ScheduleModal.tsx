@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Schedule } from '../services/mockData'
 
@@ -8,6 +8,7 @@ interface ScheduleModalProps {
   onSave: (data: ScheduleFormData) => void
   courts: Array<{ id: string; name: string }>
   initialSchedule?: Schedule
+  initialCourtId?: string
 }
 
 export interface ScheduleFormData {
@@ -18,11 +19,20 @@ export interface ScheduleFormData {
   clientContact: string
   depositAmount: number
   totalAmount: number
+  status?: string
 }
 
-const COURT_TIME_SLOTS: Record<string, string[]> = {
-  '1': ['4pm-6pm', '6pm-8pm', '8pm-10pm', '10pm-12am', 'Custom'],
-  '2': ['5pm-7pm', '7pm-9pm', '9pm-11pm', 'Custom'],
+const getTimeSlotsForCourt = (courtName: string | undefined) => {
+  if (!courtName) return ['Custom']
+  const name = courtName.toLowerCase()
+  if (name.includes('juliet') || name.includes('juliet court') || name.includes('juliet')) {
+    return ['4pm-6pm', '6pm-8pm', '8pm-10pm', '10pm-12am', 'Custom']
+  }
+  if (name.includes('andoy') || name.includes('andoy court') || name.includes('andoy')) {
+    return ['5pm-7pm', '7pm-9pm', '9pm-11pm', 'Custom']
+  }
+  // default slots
+  return ['4pm-6pm', '6pm-8pm', '8pm-10pm', 'Custom']
 }
 
 export default function ScheduleModal({
@@ -31,6 +41,7 @@ export default function ScheduleModal({
   onSave,
   courts,
   initialSchedule,
+  initialCourtId,
 }: ScheduleModalProps) {
   const [formData, setFormData] = useState<ScheduleFormData>(
     initialSchedule
@@ -42,24 +53,81 @@ export default function ScheduleModal({
           clientContact: initialSchedule.clientContact,
           depositAmount: initialSchedule.depositAmount,
           totalAmount: initialSchedule.totalAmount,
+          status: (initialSchedule as any).status || 'pending',
         }
       : {
-          courtId: courts[0]?.id || '',
+          courtId: initialCourtId || courts[0]?.id || '',
           date: '',
           timeSlot: '',
           clientName: '',
           clientContact: '',
           depositAmount: 500,
           totalAmount: 1000,
+          status: 'pending',
         },
   )
 
+  const basePriceRef = useRef<number>(0)
+
+  // Load facility default price or fallback pricing from localStorage
+  useEffect(() => {
+    const loadBasePrice = () => {
+      const court = courts.find((c) => c.id === formData.courtId)
+      const courtName = (court?.name || '').toLowerCase()
+
+      // First try: Match by court name in facilities (more reliable than ID matching)
+      try {
+        const rawFacilities = localStorage.getItem('facilities')
+        if (rawFacilities) {
+          const facilities = JSON.parse(rawFacilities) as any[]
+          const found = facilities.find((f) => {
+            const facilityName = (f.name || '').toLowerCase()
+            return facilityName === courtName || f.id === formData.courtId
+          })
+          if (found) {
+            basePriceRef.current = Number(found.defaultPrice || 0)
+            return
+          }
+        }
+      } catch (e) {}
+
+      // Second try: Use defaultPricing configuration based on court name
+      try {
+        const rawPricing = localStorage.getItem('defaultPricing')
+        if (rawPricing) {
+          const pricing = JSON.parse(rawPricing) as any
+          // Match by court name (juliet or andoy)
+          if (courtName.includes('juliet') && pricing.juletCourt) {
+            basePriceRef.current = Number(pricing.juletCourt || 0)
+            return
+          }
+          if (courtName.includes('andoy') && pricing.andoyCourt) {
+            basePriceRef.current = Number(pricing.andoyCourt || 0)
+            return
+          }
+          // Fallback to generic court price
+          if (pricing.court) {
+            basePriceRef.current = Number(pricing.court || 0)
+            return
+          }
+        }
+      } catch (e) {}
+    }
+
+    loadBasePrice()
+    // if creating a new schedule (no initialSchedule), prefill the totalAmount
+    if (!initialSchedule) {
+      setFormData((prev) => ({ ...prev, totalAmount: basePriceRef.current || prev.totalAmount }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.courtId, courts, initialSchedule, isOpen])
+
   const [customTime, setCustomTime] = useState('')
 
-  const availableTimeSlots = useMemo(
-    () => COURT_TIME_SLOTS[formData.courtId] || [],
-    [formData.courtId],
-  )
+  const availableTimeSlots = useMemo(() => {
+    const court = courts.find((c) => c.id === formData.courtId)
+    return getTimeSlotsForCourt(court?.name)
+  }, [formData.courtId, courts])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,6 +174,7 @@ export default function ScheduleModal({
                   timeSlot: '',
                 })
               }
+              disabled={!!initialCourtId && !initialSchedule}
               className="w-full px-3 py-2 border border-var(--color-border) rounded-lg focus:outline-none focus:ring-2 focus:ring-var(--color-primary)"
               required
             >
@@ -115,6 +184,9 @@ export default function ScheduleModal({
                 </option>
               ))}
             </select>
+            {initialCourtId && !initialSchedule && (
+              <p className="text-sm text-gray-500 mt-1">Court is locked for this schedule</p>
+            )}
           </div>
 
           {/* Date */}
@@ -215,6 +287,15 @@ export default function ScheduleModal({
 
           {/* Form Actions */}
           <div className="flex gap-2 pt-4">
+            <div style={{ flex: 1 }}>
+              <label className="block text-sm font-semibold mb-2">Status</label>
+              <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                <option value="pending">pending</option>
+                <option value="confirmed">confirmed</option>
+                <option value="completed">completed</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </div>
             <button type="button" onClick={onClose} className="btn btn-secondary flex-1">
               Cancel
             </button>

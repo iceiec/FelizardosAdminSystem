@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Search, AlertCircle, CheckCircle, Clock } from 'lucide-react'
-import { mockMaintenanceData } from '@/services/mockData'
+// no dummy data: use backend results or empty list
+import { maintenanceAPI } from '@/services/api'
 import { toast } from 'sonner'
 import { MaintenanceModal, type MaintenanceFormData } from '@/components/MaintenanceModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -22,8 +23,19 @@ export default function MaintenancePage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        setTasks(mockMaintenanceData)
+        const apiTasks = await maintenanceAPI.getAll().catch(() => [])
+        setTasks(
+          (apiTasks || []).map((task: any) => ({
+            id: task.id,
+            title: task.title,
+            location: task.location,
+            priority: task.priority,
+            status: task.status,
+            assignee: task.assignee,
+            dueDate: task.dueDate || task.due_date,
+            description: task.description || '',
+          })),
+        )
       } catch (error) {
         toast.error('Failed to load maintenance data')
       } finally {
@@ -57,23 +69,54 @@ export default function MaintenancePage() {
 
   const confirmDelete = () => {
     if (confirmDialog.id) {
-      setTasks(tasks.filter((t) => t.id !== confirmDialog.id))
-      toast.success('Task deleted successfully')
+      const deleteTask = async () => {
+        try {
+          await maintenanceAPI.delete(confirmDialog.id!)
+          setTasks(tasks.filter((t) => t.id !== confirmDialog.id))
+          toast.success('Task deleted successfully')
+        } catch (error) {
+          setTasks(tasks.filter((t) => t.id !== confirmDialog.id))
+          toast.success('Task deleted locally')
+        }
+      }
+      deleteTask()
       setConfirmDialog({ isOpen: false, id: null })
     }
   }
 
-  const handleSubmit = (data: MaintenanceFormData) => {
+  const handleSubmit = async (data: MaintenanceFormData) => {
+    const payload = {
+      title: data.title,
+      location: data.location,
+      priority: data.priority,
+      status: data.status,
+      assignee: data.assignee,
+      dueDate: data.dueDate,
+      description: data.description || '',
+    }
+
     if (editingId) {
-      setTasks(tasks.map((t) => (t.id === editingId ? { ...t, ...data, id: editingId } : t)))
-      toast.success('Task updated successfully')
-    } else {
-      const newTask: MaintenanceTask = {
-        id: `task-${Date.now()}`,
-        ...data,
+      try {
+        const updated = await maintenanceAPI.update(editingId, payload)
+        setTasks(tasks.map((t) => (t.id === editingId ? { ...updated, dueDate: updated.dueDate || updated.due_date } : t)))
+        toast.success('Task updated successfully')
+      } catch (error) {
+        setTasks(tasks.map((t) => (t.id === editingId ? { ...t, ...data, id: editingId } : t)))
+        toast.success('Task updated locally')
       }
-      setTasks([...tasks, newTask])
-      toast.success('Task created successfully')
+    } else {
+      try {
+        const created = await maintenanceAPI.create(payload)
+        setTasks([...tasks, { ...created, dueDate: created.dueDate || created.due_date }])
+        toast.success('Task created successfully')
+      } catch (error) {
+        const newTask: MaintenanceTask = {
+          id: `task-${Date.now()}`,
+          ...data,
+        }
+        setTasks([...tasks, newTask])
+        toast.success('Task created locally')
+      }
     }
     setIsModalOpen(false)
     setEditingId(null)
