@@ -109,7 +109,8 @@ export default function PoolManagementPage() {
         const raw = localStorage.getItem('facilities')
         if (raw && pool) {
           const facs = JSON.parse(raw) as any[]
-          const found = facs.find((f) => f.id === pool.id)
+          // Match by type 'pool' since IDs may not match between settings and database
+          const found = facs.find((f) => f.type === 'pool')
           if (found && found.name) setPool((p) => p ? { ...p, name: found.name } : p)
         }
       } catch (e) {}
@@ -325,9 +326,6 @@ export default function PoolManagementPage() {
                 <button onClick={handleViewEvents} className="btn btn-secondary" style={{ flex: 1 }}>
                   <Calendar size={16} />
                   View Events
-                </button>
-                <button onClick={() => setIsPoolModalOpen(true)} className="btn btn-secondary" style={{ flex: 1 }}>
-                  Edit Pool
                 </button>
               </div>
             </div>

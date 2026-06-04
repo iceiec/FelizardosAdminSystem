@@ -18,7 +18,7 @@ interface DefaultPricing {
 export default function SettingsPage() {
   const [facilities, setFacilities] = useState<Facility[]>([
     { id: 'pav-1', name: 'Main Pavilion', type: 'pavilion', defaultPrice: 5000 },
-    { id: 'pool-1', name: 'Olympic Pool', type: 'pool', defaultPrice: 3000 },
+    { id: 'pool-1', name: 'Pool', type: 'pool', defaultPrice: 3000 },
     { id: 'court-1', name: 'Juliet Court', type: 'court', defaultPrice: 1000 },
     { id: 'court-2', name: 'Andoy Court', type: 'court', defaultPrice: 900 },
   ])

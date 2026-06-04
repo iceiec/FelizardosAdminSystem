@@ -136,7 +136,7 @@ export const mockPoolData = [
   {
     id: 'pool-1',
     name: 'Olympic Pool',
-    size: '50m x 25m',
+    size: '',
     depth: '2m',
     capacity: 200,
     status: 'open',

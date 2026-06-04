@@ -97,7 +97,8 @@ export default function PavilionManagementPage() {
         const raw = localStorage.getItem('facilities')
         if (raw && pavilion) {
           const facs = JSON.parse(raw) as any[]
-          const found = facs.find((f) => f.id === pavilion.id)
+          // Match by type 'pavilion' since IDs may not match between settings and database
+          const found = facs.find((f) => f.type === 'pavilion')
           if (found && found.name) setPavilion((p) => p ? { ...p, name: found.name } : p)
         }
       } catch (e) {}

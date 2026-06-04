@@ -16,11 +16,11 @@ interface ModuleCard {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const [stats] = useState({
-    pavilions: 12,
-    pools: 5,
-    courts: 8,
-    maintenance: 23,
+  const [stats, setStats] = useState({
+    pavilions: 0,
+    pools: 0,
+    courts: 0,
+    maintenance: 0,
   })
   const [statusCounts, setStatusCounts] = useState({
     pavilion: { pending: 0, confirmed: 0, completed: 0, cancelled: 0 },
@@ -29,44 +29,50 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
-    const fetchStatusCounts = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const pavilionModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/pavilion')).json().catch(() => ({ value: [] }))
-        const pavs = pavilionModule.value || []
+        const pavilionModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/pavilion')).json().catch(() => [])
+        const pavs = Array.isArray(pavilionModule) ? pavilionModule : []
         const pavilionCounts = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 }
         await Promise.all(pavs.map(async (p: any) => {
           try {
-            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/pavilion/bookings?pavilionId=${encodeURIComponent(p.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
+            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + `/pavilion/bookings?pavilionId=${encodeURIComponent(p.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
             ;(rows || []).forEach((r: any) => { pavilionCounts[r.status || 'pending'] = (pavilionCounts[r.status || 'pending'] || 0) + 1 })
           } catch (e) {}
         }))
 
-        const poolModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/pool')).json().catch(() => ({ value: [] }))
-        const pools = poolModule.value || []
+        const poolModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/pool')).json().catch(() => [])
+        const pools = Array.isArray(poolModule) ? poolModule : []
         const poolCounts = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 }
         await Promise.all(pools.map(async (p: any) => {
           try {
-            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/pool/bookings?poolId=${encodeURIComponent(p.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
+            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + `/pool/bookings?poolId=${encodeURIComponent(p.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
             ;(rows || []).forEach((r: any) => { poolCounts[r.status || 'pending'] = (poolCounts[r.status || 'pending'] || 0) + 1 })
           } catch (e) {}
         }))
 
-        const courtModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/court')).json().catch(() => ({ value: [] }))
-        const courts = courtModule.value || []
+        const courtModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/court')).json().catch(() => [])
+        const courts = Array.isArray(courtModule) ? courtModule : []
         const courtCounts = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 }
         await Promise.all(courts.map(async (c: any) => {
           try {
-            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000') + `/court/schedules?courtId=${encodeURIComponent(c.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
+            const rows = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + `/court/schedules?courtId=${encodeURIComponent(c.id)}`, { headers: { 'Content-Type': 'application/json' } })).json()
             ;(rows || []).forEach((r: any) => { courtCounts[r.status || 'pending'] = (courtCounts[r.status || 'pending'] || 0) + 1 })
           } catch (e) {}
         }))
 
         setStatusCounts({ pavilion: pavilionCounts, pool: poolCounts, court: courtCounts })
+        setStats({
+          pavilions: pavs.length,
+          pools: pools.length,
+          courts: courts.length,
+          maintenance: 0,
+        })
       } catch (e) {
         // ignore
       }
     }
-    fetchStatusCounts()
+    fetchDashboardData()
   }, [])
 
   const modules: ModuleCard[] = [
