@@ -47,6 +47,53 @@ export default function SettingsPage() {
   const [newFacilityType, setNewFacilityType] = useState<'pavilion' | 'pool' | 'court'>('pavilion')
   const [newFacilityPrice, setNewFacilityPrice] = useState('')
 
+  // Sync facilities prices to default pricing configuration
+  const syncFacilitiesToDefaultPricing = (facilityList: Facility[]) => {
+    // Start with current pricing values
+    const newPricing: DefaultPricing = {
+      pavilion: defaultPricing.pavilion,
+      pool: defaultPricing.pool,
+      juletCourt: defaultPricing.juletCourt,
+      andoyCourt: defaultPricing.andoyCourt,
+    }
+    
+    // Find pavilion facility and update default pricing
+    const pavilionFacility = facilityList.find(f => f.type === 'pavilion')
+    if (pavilionFacility) {
+      newPricing.pavilion = pavilionFacility.defaultPrice
+    }
+    
+    // Find pool facility and update default pricing
+    const poolFacility = facilityList.find(f => f.type === 'pool')
+    if (poolFacility) {
+      newPricing.pool = poolFacility.defaultPrice
+    }
+    
+    // Find court facilities and map by name - check each facility individually
+    const courts = facilityList.filter(f => f.type === 'court')
+    
+    // First, try to find courts by name matching
+    const julietCourt = courts.find(c => {
+      const lowerName = c.name.toLowerCase()
+      return lowerName.includes('juliet') || lowerName.includes('julet')
+    })
+    
+    const andoyCourt = courts.find(c => {
+      const lowerName = c.name.toLowerCase()
+      return lowerName.includes('andoy')
+    })
+    
+    // Update pricing if courts are found
+    if (julietCourt) {
+      newPricing.juletCourt = julietCourt.defaultPrice
+    }
+    if (andoyCourt) {
+      newPricing.andoyCourt = andoyCourt.defaultPrice
+    }
+    
+    setDefaultPricing(newPricing)
+  }
+
   const handleAddFacility = () => {
     if (newFacilityName && newFacilityPrice) {
       const newFacility: Facility = {
@@ -55,27 +102,79 @@ export default function SettingsPage() {
         type: newFacilityType,
         defaultPrice: parseInt(newFacilityPrice),
       }
-      setFacilities([...facilities, newFacility])
+      const updatedFacilities = [...facilities, newFacility]
+      setFacilities(updatedFacilities)
+      syncFacilitiesToDefaultPricing(updatedFacilities)
       setNewFacilityName('')
       setNewFacilityPrice('')
       setIsAddModalOpen(false)
     }
   }
 
-  // Load settings from localStorage on mount
+  // Load settings from localStorage on mount and sync facilities to pricing
   useEffect(() => {
+    let loadedPricing: DefaultPricing | null = null
+    let loadedFacilities: Facility[] | null = null
+
     try {
       const rawPricing = localStorage.getItem('defaultPricing')
-      if (rawPricing) setDefaultPricing(JSON.parse(rawPricing))
+      if (rawPricing) loadedPricing = JSON.parse(rawPricing)
     } catch (e) {
       // ignore
     }
 
     try {
       const rawFacilities = localStorage.getItem('facilities')
-      if (rawFacilities) setFacilities(JSON.parse(rawFacilities))
+      if (rawFacilities) loadedFacilities = JSON.parse(rawFacilities)
     } catch (e) {
       // ignore
+    }
+
+    // If we have facilities in storage, use them and sync pricing from facilities
+    if (loadedFacilities) {
+      setFacilities(loadedFacilities)
+      // Sync pricing based on loaded facilities
+      const newPricing: DefaultPricing = {
+        pavilion: defaultPricing.pavilion,
+        pool: defaultPricing.pool,
+        juletCourt: defaultPricing.juletCourt,
+        andoyCourt: defaultPricing.andoyCourt,
+      }
+      
+      const pavilionFacility = loadedFacilities.find(f => f.type === 'pavilion')
+      if (pavilionFacility) {
+        newPricing.pavilion = pavilionFacility.defaultPrice
+      }
+      
+      const poolFacility = loadedFacilities.find(f => f.type === 'pool')
+      if (poolFacility) {
+        newPricing.pool = poolFacility.defaultPrice
+      }
+      
+      // Find court facilities and map by name - check each facility individually
+      const courts = loadedFacilities.filter(f => f.type === 'court')
+      
+      const julietCourt = courts.find(c => {
+        const lowerName = c.name.toLowerCase()
+        return lowerName.includes('juliet') || lowerName.includes('julet')
+      })
+      
+      const andoyCourt = courts.find(c => {
+        const lowerName = c.name.toLowerCase()
+        return lowerName.includes('andoy')
+      })
+      
+      if (julietCourt) {
+        newPricing.juletCourt = julietCourt.defaultPrice
+      }
+      if (andoyCourt) {
+        newPricing.andoyCourt = andoyCourt.defaultPrice
+      }
+      
+      setDefaultPricing(newPricing)
+    } else if (loadedPricing) {
+      // Only use stored pricing if no facilities are stored
+      setDefaultPricing(loadedPricing)
     }
   }, [])
 
@@ -120,18 +219,18 @@ export default function SettingsPage() {
 
   const handleSaveEditFacility = () => {
     if (editingFacility && newFacilityName && newFacilityPrice) {
-      setFacilities(
-        facilities.map((f) =>
-          f.id === editingFacility.id
-            ? {
-                ...f,
-                name: newFacilityName,
-                type: newFacilityType,
-                defaultPrice: parseInt(newFacilityPrice),
-              }
-            : f,
-        ),
+      const updatedFacilities = facilities.map((f) =>
+        f.id === editingFacility.id
+          ? {
+              ...f,
+              name: newFacilityName,
+              type: newFacilityType,
+              defaultPrice: parseInt(newFacilityPrice),
+            }
+          : f,
       )
+      setFacilities(updatedFacilities)
+      syncFacilitiesToDefaultPricing(updatedFacilities)
       setIsEditModalOpen(false)
       setEditingFacility(null)
       setNewFacilityName('')
@@ -141,7 +240,9 @@ export default function SettingsPage() {
 
   const handleDeleteFacility = (id: string) => {
     if (confirm('Are you sure you want to delete this facility?')) {
-      setFacilities(facilities.filter((f) => f.id !== id))
+      const updatedFacilities = facilities.filter((f) => f.id !== id)
+      setFacilities(updatedFacilities)
+      syncFacilitiesToDefaultPricing(updatedFacilities)
     }
   }
 

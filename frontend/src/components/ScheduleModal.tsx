@@ -41,6 +41,7 @@ export default function ScheduleModal({
   onSave,
   courts,
   initialSchedule,
+  initialCourtId,
 }: ScheduleModalProps) {
   const [formData, setFormData] = useState<ScheduleFormData>(
     initialSchedule
@@ -71,11 +72,18 @@ export default function ScheduleModal({
   // Load facility default price or fallback pricing from localStorage
   useEffect(() => {
     const loadBasePrice = () => {
+      const court = courts.find((c) => c.id === formData.courtId)
+      const courtName = (court?.name || '').toLowerCase()
+
+      // First try: Match by court name in facilities (more reliable than ID matching)
       try {
         const rawFacilities = localStorage.getItem('facilities')
         if (rawFacilities) {
           const facilities = JSON.parse(rawFacilities) as any[]
-          const found = facilities.find((f) => f.id === formData.courtId)
+          const found = facilities.find((f) => {
+            const facilityName = (f.name || '').toLowerCase()
+            return facilityName === courtName || f.id === formData.courtId
+          })
           if (found) {
             basePriceRef.current = Number(found.defaultPrice || 0)
             return
@@ -83,24 +91,23 @@ export default function ScheduleModal({
         }
       } catch (e) {}
 
+      // Second try: Use defaultPricing configuration based on court name
       try {
         const rawPricing = localStorage.getItem('defaultPricing')
         if (rawPricing) {
           const pricing = JSON.parse(rawPricing) as any
-          // try generic court key
-          if (pricing.court) {
-            basePriceRef.current = Number(pricing.court || 0)
-            return
-          }
-          // try name-specific fallbacks used in settings (e.g., juletCourt, andoyCourt)
-          const court = courts.find((c) => c.id === formData.courtId)
-          const name = (court?.name || '').toLowerCase()
-          if (name.includes('juliet') && pricing.juletCourt) {
+          // Match by court name (juliet or andoy)
+          if (courtName.includes('juliet') && pricing.juletCourt) {
             basePriceRef.current = Number(pricing.juletCourt || 0)
             return
           }
-          if (name.includes('andoy') && pricing.andoyCourt) {
+          if (courtName.includes('andoy') && pricing.andoyCourt) {
             basePriceRef.current = Number(pricing.andoyCourt || 0)
+            return
+          }
+          // Fallback to generic court price
+          if (pricing.court) {
+            basePriceRef.current = Number(pricing.court || 0)
             return
           }
         }
@@ -167,6 +174,7 @@ export default function ScheduleModal({
                   timeSlot: '',
                 })
               }
+              disabled={!!initialCourtId && !initialSchedule}
               className="w-full px-3 py-2 border border-var(--color-border) rounded-lg focus:outline-none focus:ring-2 focus:ring-var(--color-primary)"
               required
             >
@@ -176,6 +184,9 @@ export default function ScheduleModal({
                 </option>
               ))}
             </select>
+            {initialCourtId && !initialSchedule && (
+              <p className="text-sm text-gray-500 mt-1">Court is locked for this schedule</p>
+            )}
           </div>
 
           {/* Date */}
