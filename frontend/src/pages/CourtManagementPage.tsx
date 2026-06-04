@@ -83,7 +83,19 @@ export default function CourtManagementPage() {
         const raw = localStorage.getItem('facilities')
         if (raw) {
           const facs = JSON.parse(raw) as any[]
-          setCourts((current) => current.map((c) => ({ ...c, name: (facs.find((f) => f.id === c.id)?.name) || c.name })))
+          setCourts((current) => current.map((c) => {
+            // Match by type 'court' and name pattern since IDs may not match
+            const lowerName = c.name.toLowerCase()
+            let matchedFacility
+            if (lowerName.includes('juliet') || lowerName.includes('julet')) {
+              matchedFacility = facs.find((f) => f.type === 'court' && (f.name.toLowerCase().includes('juliet') || f.name.toLowerCase().includes('julet')))
+            } else if (lowerName.includes('andoy')) {
+              matchedFacility = facs.find((f) => f.type === 'court' && f.name.toLowerCase().includes('andoy'))
+            } else {
+              matchedFacility = facs.find((f) => f.id === c.id)
+            }
+            return { ...c, name: matchedFacility?.name || c.name }
+          }))
         }
       } catch (e) {}
     }
