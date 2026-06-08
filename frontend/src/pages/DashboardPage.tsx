@@ -61,12 +61,16 @@ export default function DashboardPage() {
           } catch (e) {}
         }))
 
+        const maintenanceModule = await (await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/maintenance')).json().catch(() => [])
+        const maintenanceTasks = Array.isArray(maintenanceModule) ? maintenanceModule : []
+        const pendingMaintenanceCount = maintenanceTasks.filter((t: any) => t.status === 'pending').length
+
         setStatusCounts({ pavilion: pavilionCounts, pool: poolCounts, court: courtCounts })
         setStats({
           pavilions: pavs.length,
           pools: pools.length,
           courts: courts.length,
-          maintenance: 0,
+          maintenance: pendingMaintenanceCount,
         })
       } catch (e) {
         // ignore

@@ -32,10 +32,12 @@ exports.getById = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   try {
     const { name, surface, status, nextBooking } = req.body
-    if (!name || !surface) {
-      return res.status(400).json({ error: 'Name and surface are required' })
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' })
     }
-    const created = await Court.create(name, surface, status || 'available', nextBooking || null)
+    // Use default surface if not provided
+    const surfaceValue = surface || 'Court'
+    const created = await Court.create(name, surfaceValue, status || 'available', nextBooking || null)
     return res.status(201).json(toDTO(created))
   } catch (err) {
     next(err)
@@ -45,7 +47,17 @@ exports.create = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     const { name, surface, status, nextBooking } = req.body
-    const updated = await Court.update(req.params.id, name, surface, status || 'available', nextBooking || null)
+    // Get existing court to fill in unspecified fields
+    const existing = await Court.getById(req.params.id)
+    if (!existing) return res.status(404).json({ error: 'Court not found' })
+    
+    const updated = await Court.update(
+      req.params.id,
+      name || existing.name,
+      surface || existing.surface,
+      status || existing.status,
+      nextBooking || existing.next_booking
+    )
     if (!updated) return res.status(404).json({ error: 'Court not found' })
     return res.json(toDTO(updated))
   } catch (err) {

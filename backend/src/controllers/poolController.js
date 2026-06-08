@@ -41,8 +41,8 @@ exports.getById = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   try {
     const { name, size, depth, capacity, status, temperature, lastCleaned } = req.body
-    if (!name || !size || !depth || capacity == null) {
-      return res.status(400).json({ error: 'Name, size, depth and capacity are required' })
+    if (!name || capacity == null) {
+      return res.status(400).json({ error: 'Name and capacity are required' })
     }
 
     const capacityValue = Number(capacity)
@@ -55,10 +55,14 @@ exports.create = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid temperature' })
     }
 
+    // Use default size/depth if not provided
+    const sizeValue = size || 'Standard'
+    const depthValue = depth || '1.5m'
+
     const created = await Pool.create(
       name,
-      size,
-      depth,
+      sizeValue,
+      depthValue,
       capacityValue,
       normalizeStatus(status),
       temperatureValue,
@@ -73,17 +77,21 @@ exports.create = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     const { name, size, depth, capacity, status, temperature, lastCleaned } = req.body
-    const capacityValue = capacity != null ? Number(capacity) : null
-    const temperatureValue = temperature != null && temperature !== '' ? Number(temperature) : null
+    // Get existing pool to fill in unspecified fields
+    const existing = await Pool.getById(req.params.id)
+    if (!existing) return res.status(404).json({ error: 'Pool not found' })
+    
+    const capacityValue = capacity != null ? Number(capacity) : existing.capacity
+    const temperatureValue = temperature != null && temperature !== '' ? Number(temperature) : existing.temperature
     const updated = await Pool.update(
       req.params.id,
-      name,
-      size,
-      depth,
+      name || existing.name,
+      size || existing.size,
+      depth || existing.depth,
       capacityValue,
-      normalizeStatus(status),
+      normalizeStatus(status) || existing.status,
       temperatureValue,
-      lastCleaned || null,
+      lastCleaned || existing.last_cleaned,
     )
     if (!updated) return res.status(404).json({ error: 'Pool not found' })
     return res.json(toDTO(updated))

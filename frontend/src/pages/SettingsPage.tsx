@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, X, Edit2 } from 'lucide-react'
+import { pavilionAPI, poolAPI, courtAPI } from '@/services/api'
+import { toast } from 'sonner'
 
 interface Facility {
   id: string
   name: string
   type: 'pavilion' | 'pool' | 'court'
   defaultPrice: number
+  hourlyRate?: number
+  capacity?: number
+  location?: string
+  // pool description (size/depth) and court surface removed — not used
 }
 
 interface DefaultPricing {
@@ -16,12 +22,7 @@ interface DefaultPricing {
 }
 
 export default function SettingsPage() {
-  const [facilities, setFacilities] = useState<Facility[]>([
-    { id: 'pav-1', name: 'Main Pavilion', type: 'pavilion', defaultPrice: 5000 },
-    { id: 'pool-1', name: 'Pool', type: 'pool', defaultPrice: 3000 },
-    { id: 'court-1', name: 'Juliet Court', type: 'court', defaultPrice: 1000 },
-    { id: 'court-2', name: 'Andoy Court', type: 'court', defaultPrice: 900 },
-  ])
+  const [facilities, setFacilities] = useState<Facility[]>([])
 
   const [defaultPricing, setDefaultPricing] = useState<DefaultPricing>({
     pavilion: 5000,
@@ -94,88 +95,118 @@ export default function SettingsPage() {
     setDefaultPricing(newPricing)
   }
 
-  const handleAddFacility = () => {
-    if (newFacilityName && newFacilityPrice) {
-      const newFacility: Facility = {
-        id: `${newFacilityType}-${Date.now()}`,
+  const handleAddFacility = async () => {
+    if (!newFacilityName || !newFacilityPrice) return
+
+    try {
+      let response
+      const baseData = {
         name: newFacilityName,
-        type: newFacilityType,
-        defaultPrice: parseInt(newFacilityPrice),
+        status: 'active',
+        hourlyRate: parseInt(newFacilityPrice),
       }
-      const updatedFacilities = [...facilities, newFacility]
-      setFacilities(updatedFacilities)
-      syncFacilitiesToDefaultPricing(updatedFacilities)
-      setNewFacilityName('')
-      setNewFacilityPrice('')
-      setIsAddModalOpen(false)
+
+      if (newFacilityType === 'pavilion') {
+        response = await pavilionAPI.create({
+          ...baseData,
+          capacity: 100,
+          location: 'Main',
+        })
+      } else if (newFacilityType === 'pool') {
+        response = await poolAPI.create({
+          ...baseData,
+          name: newFacilityName,
+          capacity: 50,
+          status: 'open',
+          temperature: 28,
+          lastCleaned: new Date().toISOString().split('T')[0],
+        })
+      } else if (newFacilityType === 'court') {
+        response = await courtAPI.create({
+          name: newFacilityName,
+          status: 'available',
+        })
+      }
+
+      if (response) {
+        const newFacility: Facility = {
+          id: response.id,
+          name: newFacilityName,
+          type: newFacilityType,
+          defaultPrice: parseInt(newFacilityPrice),
+        }
+        const updated = [...facilities, newFacility]
+        setFacilities(updated)
+        syncFacilitiesToDefaultPricing(updated)
+        setNewFacilityName('')
+        setNewFacilityPrice('')
+        setIsAddModalOpen(false)
+        toast.success(`${getFacilityTypeLabel(newFacilityType)} created successfully`)
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create facility')
     }
   }
 
-  // Load settings from localStorage on mount and sync facilities to pricing
+  // Load facilities from backend on mount
   useEffect(() => {
-    let loadedPricing: DefaultPricing | null = null
-    let loadedFacilities: Facility[] | null = null
-
+    const savedRaw = localStorage.getItem('defaultPricing')
+    const savedPricingExists = Boolean(savedRaw)
     try {
-      const rawPricing = localStorage.getItem('defaultPricing')
-      if (rawPricing) loadedPricing = JSON.parse(rawPricing)
-    } catch (e) {
-      // ignore
-    }
+      if (savedRaw) setDefaultPricing(JSON.parse(savedRaw))
+    } catch (e) {}
 
-    try {
-      const rawFacilities = localStorage.getItem('facilities')
-      if (rawFacilities) loadedFacilities = JSON.parse(rawFacilities)
-    } catch (e) {
-      // ignore
-    }
+    const loadFacilities = async () => {
+      try {
+        const [pavilions, pools, courts] = await Promise.all([
+          pavilionAPI.getAll(),
+          poolAPI.getAll(),
+          courtAPI.getAll(),
+        ])
 
-    // If we have facilities in storage, use them and sync pricing from facilities
-    if (loadedFacilities) {
-      setFacilities(loadedFacilities)
-      // Sync pricing based on loaded facilities
-      const newPricing: DefaultPricing = {
-        pavilion: defaultPricing.pavilion,
-        pool: defaultPricing.pool,
-        juletCourt: defaultPricing.juletCourt,
-        andoyCourt: defaultPricing.andoyCourt,
+        const allFacilities: Facility[] = [
+          ...(Array.isArray(pavilions)
+            ? pavilions.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                type: 'pavilion' as const,
+                defaultPrice: p.hourlyRate || 0,
+                capacity: p.capacity,
+                location: p.location,
+                hourlyRate: p.hourlyRate,
+              }))
+            : []),
+          ...(Array.isArray(pools)
+            ? pools.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                type: 'pool' as const,
+                defaultPrice: p.temperature ? Math.round(p.temperature * 100) : 0,
+                capacity: p.capacity,
+                // pool description removed
+              }))
+            : []),
+          ...(Array.isArray(courts)
+            ? courts.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                type: 'court' as const,
+                defaultPrice: 1000,
+                // court surface removed
+              }))
+            : []),
+        ]
+
+        setFacilities(allFacilities)
+        // Only sync defaults from facilities when there's no saved pricing
+        if (!savedPricingExists) syncFacilitiesToDefaultPricing(allFacilities)
+      } catch (error) {
+        console.error('Failed to load facilities:', error)
+        // Fall back to empty if API fails
+        setFacilities([])
       }
-      
-      const pavilionFacility = loadedFacilities.find(f => f.type === 'pavilion')
-      if (pavilionFacility) {
-        newPricing.pavilion = pavilionFacility.defaultPrice
-      }
-      
-      const poolFacility = loadedFacilities.find(f => f.type === 'pool')
-      if (poolFacility) {
-        newPricing.pool = poolFacility.defaultPrice
-      }
-      
-      // Find court facilities and map by name - check each facility individually
-      const courts = loadedFacilities.filter(f => f.type === 'court')
-      
-      const julietCourt = courts.find(c => {
-        const lowerName = c.name.toLowerCase()
-        return lowerName.includes('juliet') || lowerName.includes('julet')
-      })
-      
-      const andoyCourt = courts.find(c => {
-        const lowerName = c.name.toLowerCase()
-        return lowerName.includes('andoy')
-      })
-      
-      if (julietCourt) {
-        newPricing.juletCourt = julietCourt.defaultPrice
-      }
-      if (andoyCourt) {
-        newPricing.andoyCourt = andoyCourt.defaultPrice
-      }
-      
-      setDefaultPricing(newPricing)
-    } else if (loadedPricing) {
-      // Only use stored pricing if no facilities are stored
-      setDefaultPricing(loadedPricing)
     }
+    loadFacilities()
   }, [])
 
   const [addons, setAddons] = useState<Array<{ name: string; price: number }>>([])
@@ -203,9 +234,9 @@ export default function SettingsPage() {
     try {
       localStorage.setItem('addons', JSON.stringify(addons))
       window.dispatchEvent(new Event('settings:updated'))
-      alert('Add-ons saved')
+      toast.success('Add-ons saved successfully')
     } catch (e) {
-      alert('Failed to save add-ons')
+      toast.error('Failed to save add-ons')
     }
   }
 
@@ -217,32 +248,76 @@ export default function SettingsPage() {
     setIsEditModalOpen(true)
   }
 
-  const handleSaveEditFacility = () => {
-    if (editingFacility && newFacilityName && newFacilityPrice) {
-      const updatedFacilities = facilities.map((f) =>
-        f.id === editingFacility.id
-          ? {
-              ...f,
-              name: newFacilityName,
-              type: newFacilityType,
-              defaultPrice: parseInt(newFacilityPrice),
-            }
-          : f,
-      )
-      setFacilities(updatedFacilities)
-      syncFacilitiesToDefaultPricing(updatedFacilities)
-      setIsEditModalOpen(false)
-      setEditingFacility(null)
-      setNewFacilityName('')
-      setNewFacilityPrice('')
+  const handleSaveEditFacility = async () => {
+    if (!editingFacility || !newFacilityName || !newFacilityPrice) return
+
+    try {
+      const facility = facilities.find(f => f.id === editingFacility.id)
+      if (!facility) return
+
+      let response
+      if (facility.type === 'pavilion') {
+        response = await pavilionAPI.update(editingFacility.id, {
+          name: newFacilityName,
+          hourlyRate: parseInt(newFacilityPrice),
+          capacity: facility.capacity || 100,
+          location: facility.location || 'Main',
+        })
+      } else if (facility.type === 'pool') {
+        response = await poolAPI.update(editingFacility.id, {
+          name: newFacilityName,
+          capacity: facility.capacity || 50,
+        })
+      } else if (facility.type === 'court') {
+        response = await courtAPI.update(editingFacility.id, {
+          name: newFacilityName,
+        })
+      }
+
+      if (response) {
+        const updated = facilities.map(f =>
+          f.id === editingFacility.id
+            ? {
+                ...f,
+                name: newFacilityName,
+                defaultPrice: parseInt(newFacilityPrice),
+              }
+            : f,
+        )
+        setFacilities(updated)
+        syncFacilitiesToDefaultPricing(updated)
+        setIsEditModalOpen(false)
+        setEditingFacility(null)
+        setNewFacilityName('')
+        setNewFacilityPrice('')
+        toast.success('Facility updated successfully')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update facility')
     }
   }
 
-  const handleDeleteFacility = (id: string) => {
-    if (confirm('Are you sure you want to delete this facility?')) {
-      const updatedFacilities = facilities.filter((f) => f.id !== id)
-      setFacilities(updatedFacilities)
-      syncFacilitiesToDefaultPricing(updatedFacilities)
+  const handleDeleteFacility = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this facility?')) return
+
+    try {
+      const facility = facilities.find(f => f.id === id)
+      if (!facility) return
+
+      if (facility.type === 'pavilion') {
+        await pavilionAPI.delete(id)
+      } else if (facility.type === 'pool') {
+        await poolAPI.delete(id)
+      } else if (facility.type === 'court') {
+        await courtAPI.delete(id)
+      }
+
+      const updated = facilities.filter(f => f.id !== id)
+      setFacilities(updated)
+      syncFacilitiesToDefaultPricing(updated)
+      toast.success('Facility deleted successfully')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete facility')
     }
   }
 
@@ -252,11 +327,12 @@ export default function SettingsPage() {
 
   const handleSaveFacilities = () => {
     try {
-      localStorage.setItem('facilities', JSON.stringify(facilities))
+      // Facilities are now saved to backend API when added/edited/deleted
+      // Just dispatch event to notify other components
       window.dispatchEvent(new Event('settings:updated'))
-      alert('Facilities saved')
+      toast.success('Facilities synchronized')
     } catch (e) {
-      alert('Failed to save facilities')
+      toast.error('Failed to synchronize facilities')
     }
   }
 
@@ -265,9 +341,9 @@ export default function SettingsPage() {
     try {
       localStorage.setItem('defaultPricing', JSON.stringify(defaultPricing))
       window.dispatchEvent(new Event('settings:updated'))
-      alert('Default pricing settings saved successfully!')
+      toast.success('Default pricing settings saved successfully')
     } catch (e) {
-      alert('Failed to save pricing')
+      toast.error('Failed to save pricing')
     }
   }
 
