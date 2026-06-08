@@ -1,4 +1,5 @@
 const PoolBooking = require('../models/PoolBooking')
+const { validate: isUUID } = require('uuid')
 
 const toDTO = (booking) => ({
   id: booking.id,
@@ -21,6 +22,7 @@ exports.getByPool = async (req, res, next) => {
   try {
     const { poolId } = req.query
     if (!poolId) return res.status(400).json({ error: 'poolId query param required' })
+    if (!isUUID(poolId)) return res.status(400).json({ error: 'poolId must be a valid UUID' })
     const rows = await PoolBooking.getAllByPool(poolId)
     return res.json(rows.map(toDTO))
   } catch (err) {

@@ -12,6 +12,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 // Pavilion routes
 app.use('/api/pavilion', require('./routes/pavilion'));
+app.use('/api/pavilion/bookings', require('./routes/pavilionBookings'));
 app.use('/api/pool/bookings', require('./routes/poolBookings'));
 app.use('/api/court/schedules', require('./routes/courtSchedules'));
 app.use('/api/pool', require('./routes/pool'));

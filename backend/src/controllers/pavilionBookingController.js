@@ -8,6 +8,25 @@ const toDateOnly = (value) => {
   return date.toISOString().slice(0, 10)
 }
 
+const toDTO = (booking) => ({
+  id: booking.id,
+  pavilionId: booking.pavilion_id,
+  eventName: booking.event_name,
+  clientName: booking.client_name,
+  clientContact: booking.client_contact,
+  clientFacebook: booking.client_facebook,
+  eventDate: booking.event_date,
+  startDate: booking.start_date,
+  endDate: booking.end_date,
+  capacity: Number(booking.capacity || 0),
+  depositAmount: Number(booking.deposit_amount || 0),
+  totalAmount: Number(booking.total_amount || 0),
+  extras: Array.isArray(booking.extras) ? booking.extras : booking.extras ? JSON.parse(booking.extras) : [],
+  status: booking.status || 'pending',
+  createdAt: booking.created_at,
+  updatedAt: booking.updated_at,
+})
+
 exports.create = async (req, res, next) => {
   try {
     const {
@@ -48,7 +67,7 @@ exports.create = async (req, res, next) => {
       totalAmount || 0,
       extras || []
     )
-    return res.status(201).json(created)
+    return res.status(201).json(toDTO(created))
   } catch (err) {
     next(err)
   }
@@ -59,7 +78,7 @@ exports.getByPavilion = async (req, res, next) => {
     const { pavilionId } = req.query
     if (!pavilionId) return res.status(400).json({ error: 'pavilionId query param required' })
     const rows = await PavilionBooking.getAllByPavilion(pavilionId)
-    return res.json(rows)
+    return res.json(rows.map(toDTO))
   } catch (err) { next(err) }
 }
 
@@ -68,7 +87,7 @@ exports.getById = async (req, res, next) => {
     const { id } = req.params
     const b = await PavilionBooking.getById(id)
     if (!b) return res.status(404).json({ error: 'Booking not found' })
-    return res.json(b)
+    return res.json(toDTO(b))
   } catch (err) { next(err) }
 }
 
@@ -78,7 +97,7 @@ exports.updateStatus = async (req, res, next) => {
     const { status } = req.body
     if (!status) return res.status(400).json({ error: 'status required' })
     const updated = await PavilionBooking.updateStatus(id, status)
-    return res.json(updated)
+    return res.json(toDTO(updated))
   } catch (err) { next(err) }
 }
 
@@ -125,7 +144,7 @@ exports.update = async (req, res, next) => {
       status || 'pending'
     )
 
-    return res.json(updated)
+    return res.json(toDTO(updated))
   } catch (err) {
     next(err)
   }

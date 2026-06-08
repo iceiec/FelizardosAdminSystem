@@ -1,4 +1,5 @@
 const CourtSchedule = require('../models/CourtSchedule')
+const { validate: isUUID } = require('uuid')
 
 const toDTO = (schedule) => ({
   id: schedule.id,
@@ -18,6 +19,7 @@ exports.getByCourt = async (req, res, next) => {
   try {
     const { courtId } = req.query
     if (!courtId) return res.status(400).json({ error: 'courtId query param required' })
+    if (!isUUID(courtId)) return res.status(400).json({ error: 'courtId must be a valid UUID' })
     const rows = await CourtSchedule.getAllByCourt(courtId)
     return res.json(rows.map(toDTO))
   } catch (err) {

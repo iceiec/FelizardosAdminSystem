@@ -255,8 +255,10 @@ export const poolBookingAPI = {
     const response = await fetch(`${API_BASE_URL}/pool/bookings?poolId=${encodeURIComponent(poolId)}`, {
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to fetch pool bookings')
-    return response.json()
+    if (response.ok) return response.json()
+    // If invalid id (400), return empty list to avoid UI errors
+    if (response.status === 400) return []
+    throw new Error('Failed to fetch pool bookings')
   },
 
   create: async (data: any) => {
@@ -304,8 +306,10 @@ export const courtScheduleAPI = {
     const response = await fetch(`${API_BASE_URL}/court/schedules?courtId=${encodeURIComponent(courtId)}`, {
       headers: getAuthHeaders(),
     })
-    if (!response.ok) throw new Error('Failed to fetch court schedules')
-    return response.json()
+    if (response.ok) return response.json()
+    // Invalid id (400) -> return empty list so dashboard aggregation continues
+    if (response.status === 400) return []
+    throw new Error('Failed to fetch court schedules')
   },
 
   create: async (data: any) => {
