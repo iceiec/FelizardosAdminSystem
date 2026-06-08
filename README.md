@@ -8,6 +8,7 @@ An admin system for venue management consisting of three core businesses: Pool M
 
 ## 📋 Quick Navigation
 
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Deploy to Vercel + Supabase (production)
 - **[DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md)** - Comprehensive architecture, tech stack explanation, and full roadmap
 - **[QUICK_START.md](QUICK_START.md)** - Day-by-day checklist to get started immediately
 - **[CODE_EXAMPLES.md](CODE_EXAMPLES.md)** - Ready-to-use code templates for backend, frontend, and database
